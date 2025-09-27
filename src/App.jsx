@@ -172,8 +172,20 @@ function Card({ lot, dark }) {
                 className={`group rounded-2xl border shadow-sm overflow-hidden flex flex-col transition-shadow ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}
             >
                 <div className="relative">
-                    <ImageWithFallback src={lot.images[0]} alt={lot.title} loading="lazy" className="w-full h-44 object-cover" />
-                    <div className={`absolute top-3 left-3 px-2 py-1 rounded-md text-xs font-semibold ${dark ? "bg-neutral-800/90" : "bg-white/90"}`}>{lot.category}</div>
+                    <div
+                        className={`${dark ? "bg-neutral-900" : "bg-white"} w-full`}
+                        style={{ aspectRatio: "16 / 9" }}
+                    >
+                        <img
+                            src={lot.images[0]}
+                            alt={lot.title}
+                            loading="lazy"
+                            className="w-full h-full object-contain"
+                        />
+                    </div>
+                    <div className={`absolute top-3 left-3 px-2 py-1 rounded-md text-xs font-semibold ${dark ? "bg-neutral-800/90" : "bg-white/90"}`}>
+                        {lot.category}
+                    </div>
                     <div className={`absolute top-3 right-3 px-2 py-1 rounded-md text-xs flex items-center gap-1 ${dark ? "bg-neutral-800/90" : "bg-white/90"}`}>
                         <Clock size={14} /> {prettyLeft(lot.endsAt)}
                     </div>
@@ -264,13 +276,21 @@ function LotDetail({ lots, dark }) {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Gallery */}
                 <div className={`lg:col-span-2 rounded-2xl overflow-hidden border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
-                    <ImageWithFallback src={lot.images[0]} alt={lot.title} className="w-full h-[380px] object-cover" />
+                    <div
+                        className={`${dark ? "bg-neutral-900" : "bg-white"} w-full`}
+                        style={{ aspectRatio: "16 / 9" }}
+                    >
+                        <img
+                            src={lot.images[0]}
+                            alt={lot.title}
+                            className="w-full h-full object-contain"
+                        />
+                    </div>
                     <div className="grid grid-cols-3 gap-2 p-3">
                         {lot.images.map((src, i) => (
-                            <ImageWithFallback key={i} src={src} alt="thumb" loading="lazy" className="w-full h-24 object-cover rounded-lg" />
-                        ))}
-                    </div>
-                </div>
+                            <div key={i} className={`${dark ? "bg-neutral-900" : "bg-white"} w-full rounded-lg`} style={{ aspectRatio: "4 / 3" }}>
+                                <img src={src} alt="thumb" loading="lazy" className="w-full h-full object-contain rounded-lg" />
+                            </div>
 
                 {/* Side panel */}
                 <div className={`rounded-2xl border p-4 h-max ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
