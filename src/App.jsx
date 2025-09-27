@@ -263,39 +263,49 @@ function LotDetail({ lots, dark }) {
     const lot = lots.find((l) => l.id === id);
     const [bid, setBid] = useState(lot ? lot.currentBid + 1000 : 0);
 
-    if (!lot) return (
-        <div className="max-w-5xl mx-auto px-4 py-12">
-            <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 mb-6"><ChevronLeft size={16} /> Back</button>
-            <div className={`p-8 rounded-2xl border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>Lot not found.</div>
-        </div>
-    );
+    if (!lot) {
+        return (
+            <div className="max-w-5xl mx-auto px-4 py-12">
+                <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 mb-6">
+                    <ChevronLeft size={16} /> Back
+                </button>
+                <div className={`p-8 rounded-2xl border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
+                    Lot not found.
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
-            <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 mb-6"><ChevronLeft size={16} /> Back</button>
+            <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 mb-6">
+                <ChevronLeft size={16} /> Back
+            </button>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Gallery */}
                 <div className={`lg:col-span-2 rounded-2xl overflow-hidden border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
-                    <div
-                        className={`${dark ? "bg-neutral-900" : "bg-white"} w-full`}
-                        style={{ aspectRatio: "16 / 9" }}
-                    >
-                        <img
-                            src={lot.images[0]}
-                            alt={lot.title}
-                            className="w-full h-full object-contain"
-                        />
+                    {/* Main image shown fully (no crop) */}
+                    <div className={`${dark ? "bg-neutral-900" : "bg-white"} w-full`} style={{ aspectRatio: "16 / 9" }}>
+                        <img src={lot.images[0]} alt={lot.title} className="w-full h-full object-contain" />
                     </div>
+
+                    {/* Thumbnails (no crop) */}
                     <div className="grid grid-cols-3 gap-2 p-3">
                         {lot.images.map((src, i) => (
                             <div key={i} className={`${dark ? "bg-neutral-900" : "bg-white"} w-full rounded-lg`} style={{ aspectRatio: "4 / 3" }}>
                                 <img src={src} alt="thumb" loading="lazy" className="w-full h-full object-contain rounded-lg" />
                             </div>
+                        ))}
+                    </div>
+                </div>
 
                 {/* Side panel */}
                 <div className={`rounded-2xl border p-4 h-max ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
                     <h1 className="text-2xl font-semibold leading-tight">{lot.title}</h1>
-                    <p className={`mt-1 text-sm flex items-center gap-1 ${dark ? "text-neutral-400" : "text-gray-500"}`}><MapPin size={14} /> {lot.location}</p>
+                    <p className={`mt-1 text-sm flex items-center gap-1 ${dark ? "text-neutral-400" : "text-gray-500"}`}>
+                        <MapPin size={14} /> {lot.location}
+                    </p>
 
                     <div className="mt-4 grid grid-cols-2 gap-3">
                         <div className={`rounded-xl border p-3 ${dark ? "bg-neutral-800 border-neutral-700" : "bg-gray-50"}`}>
@@ -309,16 +319,28 @@ function LotDetail({ lots, dark }) {
                     </div>
 
                     <div className={`mt-3 inline-flex items-center gap-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                        <Clock size={14} /> Ends in {prettyLeft(lot.endsAt)} {lot.reserve && (<span className="inline-flex items-center gap-1 ml-2"><CheckCircle2 size={14} /> Reserve</span>)}
+                        <Clock size={14} /> Ends in {prettyLeft(lot.endsAt)}{" "}
+                        {lot.reserve && (
+                            <span className="inline-flex items-center gap-1 ml-2">
+                                <CheckCircle2 size={14} /> Reserve
+                            </span>
+                        )}
                     </div>
 
                     <div className="mt-4">
                         <label className={`text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>Your bid (EUR)</label>
-                        <input type="number" value={bid} min={lot.currentBid + 1} onChange={(e) => setBid(Number(e.target.value))}
-                            className={`mt-1 w-full border rounded-xl px-3 py-2 ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                        <input
+                            type="number"
+                            value={bid}
+                            min={lot.currentBid + 1}
+                            onChange={(e) => setBid(Number(e.target.value))}
+                            className={`mt-1 w-full border rounded-xl px-3 py-2 ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                        />
                         <div className="mt-3 flex gap-2">
                             <button className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">Place bid</button>
-                            <button className="py-2 px-3 rounded-xl border" onClick={() => alert("Buy now (mock)")}>Buy now</button>
+                            <button className="py-2 px-3 rounded-xl border" onClick={() => alert("Buy now (mock)")}>
+                                Buy now
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -329,14 +351,21 @@ function LotDetail({ lots, dark }) {
                 <div className={`rounded-2xl border p-4 ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
                     <h3 className="font-semibold mb-3">Specifications</h3>
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                        <dt className="text-gray-500 dark:text-neutral-400">Year</dt><dd>{lot.year}</dd>
-                        <dt className="text-gray-500 dark:text-neutral-400">Hours</dt><dd>{lot.hours.toLocaleString()}</dd>
-                        <dt className="text-gray-500 dark:text-neutral-400">Condition</dt><dd>{lot.condition}</dd>
+                        <dt className="text-gray-500 dark:text-neutral-400">Year</dt>
+                        <dd>{lot.year}</dd>
+                        <dt className="text-gray-500 dark:text-neutral-400">Hours</dt>
+                        <dd>{lot.hours.toLocaleString()}</dd>
+                        <dt className="text-gray-500 dark:text-neutral-400">Condition</dt>
+                        <dd>{lot.condition}</dd>
                         {Object.entries(lot.specs).map(([k, v]) => (
-                            <React.Fragment key={k}><dt className="text-gray-500 dark:text-neutral-400 capitalize">{k}</dt><dd>{v}</dd></React.Fragment>
+                            <React.Fragment key={k}>
+                                <dt className="text-gray-500 dark:text-neutral-400 capitalize">{k}</dt>
+                                <dd>{v}</dd>
+                            </React.Fragment>
                         ))}
                     </dl>
                 </div>
+
                 <div className={`rounded-2xl border p-4 lg:col-span-2 ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
                     <h3 className="font-semibold mb-3">Description</h3>
                     <p className="text-sm leading-relaxed opacity-90">{lot.description}</p>
@@ -344,7 +373,9 @@ function LotDetail({ lots, dark }) {
                         <div className="mt-4">
                             <h4 className="text-sm font-medium mb-2">Documents</h4>
                             <ul className="list-disc pl-5 text-sm opacity-90">
-                                {lot.documents.map((d) => <li key={d}>{d}</li>)}
+                                {lot.documents.map((d) => (
+                                    <li key={d}>{d}</li>
+                                ))}
                             </ul>
                         </div>
                     )}
