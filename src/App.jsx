@@ -282,6 +282,10 @@ function Home({ lots, query, setQuery, category, setCategory, sortBy, setSortBy,
             <section className="md:col-span-3">
                 <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-2xl font-semibold">Live auctions</h2>
+                    <p className={`text-xs mt-1 ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                        Bidding rules: minimum €250; bids increase in €50 steps. Your bid must be higher than the current bid.
+                    </p>
+
                     <span className={`text-sm ${dark ? "text-neutral-400" : "text-gray-600"}`}>{filtered.length} results</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -455,40 +459,91 @@ function Lightbox({ images, index, alt, onClose, onPrev, onNext }) {
 }
 
 // ===== LotDetail (uses Lightbox with full feature set) =====
-function LotDetail({ lots, dark }) {
+// --- Add these helpers once (near your other helpers) ---
+const MIN_BID = 250;
+const STEP = 50;
+
+function isStepAmount(value) {
+    return value >= MIN_BID && value % STEP === 0;
+}
+function nextValidStep(value) {
+    if (value < MIN_BID) return MIN_BID;
+    const rem = value % STEP;
+    return rem === 0 ? value : value + (STEP - rem);
+}
+
+// ===== LotDetail (hooks first; bidding + lightbox) =====
+function LotDetail({ lots, setLots, dark }) {
     const { id } = useParams();
     const nav = useNavigate();
     const lot = lots.find((l) => l.id === id);
-    const [bid, setBid] = useState(lot ? lot.currentBid + 1000 : 0);
-    const [activeIdx, setActiveIdx] = useState(0);
-    const [lightbox, setLightbox] = useState(false);
-    const [tick, setTick] = useState(0);
+
+    // Hooks must always be at the top (no conditionals)
+    const [_tick, setTick] = useState(0); // just to re-render countdown each second
     useEffect(() => {
         const t = setInterval(() => setTick((x) => x + 1), 1000);
         return () => clearInterval(t);
     }, []);
-    if (!lot) {
-        return (
-            <div className="max-w-5xl mx-auto px-4 py-12">
-                <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 mb-6"><ChevronLeft size={16} /> Back</button>
-                <div className={`p-8 rounded-2xl border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>Lot not found.</div>
-            </div>
-        );
-    }
 
+    const [activeIdx, setActiveIdx] = useState(0);
+    const [lightbox, setLightbox] = useState(false);
+
+    // Bid state (initialize to next step above current bid, but at least MIN_BID)
+    const [bid, setBid] = useState(
+        Math.max(nextValidStep(((lot?.currentBid ?? 0) + STEP)), MIN_BID)
+    );
+    const [error, setError] = useState("");
+
+    // Validate bid whenever it changes (safe: early-return if no lot)
+    useEffect(() => {
+        if (!lot) return;
+        if (Number.isNaN(bid)) { setError("Enter a number."); return; }
+        if (bid < MIN_BID) { setError(`Minimum bid is €${MIN_BID}.`); return; }
+        if (!isStepAmount(bid)) { setError(`Bids must be in €${STEP} steps (e.g. 250, 300, 350).`); return; }
+        if (bid <= lot.currentBid) { setError(`Your bid must be higher than the current bid.`); return; }
+        setError("");
+    }, [bid, lot]);
+
+    // Handlers
+    function placeBid() {
+        if (!lot || error) return;
+        setLots((prev) =>
+            prev.map((l) => (l.id === lot.id ? { ...l, currentBid: bid } : l))
+        );
+        alert(`Bid placed: €${bid.toLocaleString()}`);
+    }
+    function nudge(delta) {
+        const next = Math.max(MIN_BID, bid + delta * STEP);
+        setBid(nextValidStep(next));
+    }
     const openLightbox = () => setLightbox(true);
     const closeLightbox = () => setLightbox(false);
     const prevImage = () => setActiveIdx((i) => (i - 1 + lot.images.length) % lot.images.length);
     const nextImage = () => setActiveIdx((i) => (i + 1) % lot.images.length);
 
+    // After hooks: conditional render is fine
+    if (!lot) {
+        return (
+            <div className="max-w-5xl mx-auto px-4 py-12">
+                <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 mb-6">
+                    <ChevronLeft size={16} /> Back
+                </button>
+                <div className={`p-8 rounded-2xl border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
+                    Lot not found.
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
-            <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 mb-6"><ChevronLeft size={16} /> Back</button>
+            <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 mb-6">
+                <ChevronLeft size={16} /> Back
+            </button>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Gallery */}
                 <div className={`lg:col-span-2 rounded-2xl overflow-hidden border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
-                    {/* Main (contain, click to zoom) */}
                     <button
                         onClick={openLightbox}
                         className={`${dark ? "bg-neutral-900" : "bg-white"} w-full cursor-zoom-in`}
@@ -504,7 +559,6 @@ function LotDetail({ lots, dark }) {
                         />
                     </button>
 
-                    {/* Thumbs */}
                     <div className="grid grid-cols-3 gap-2 p-3">
                         {lot.images.map((src, i) => (
                             <button
@@ -526,7 +580,7 @@ function LotDetail({ lots, dark }) {
                     </div>
                 </div>
 
-                {/* Side panel (unchanged UI) */}
+                {/* Side panel with bidding */}
                 <div className={`rounded-2xl border p-4 h-max ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
                     <h1 className="text-2xl font-semibold leading-tight">{lot.title}</h1>
                     <p className={`mt-1 text-sm flex items-center gap-1 ${dark ? "text-neutral-400" : "text-gray-500"}`}>
@@ -545,29 +599,48 @@ function LotDetail({ lots, dark }) {
                     </div>
 
                     <div className={`mt-3 inline-flex items-center gap-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                        <Clock size={14} /> Ends in {prettyLeft(lot.endsAt)}({tick})
+                        <Clock size={14} /> Ends in {prettyLeft(lot.endsAt)}
                         {lot.reserve && <span className="inline-flex items-center gap-1 ml-2"><CheckCircle2 size={14} /> Reserve</span>}
                     </div>
 
+                    {/* Bidding UI */}
                     <div className="mt-4">
                         <label className={`text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>Your bid (EUR)</label>
-                        <input
-                            type="number"
-                            value={bid}
-                            min={lot.currentBid + 1}
-                            onChange={(e) => setBid(Number(e.target.value))}
-                            className={`mt-1 w-full border rounded-xl px-3 py-2 ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
-                        />
+                        <div className="mt-1 flex items-stretch gap-2">
+                            <button type="button" onClick={() => nudge(-1)} className="px-3 rounded-xl border" aria-label="Decrease by 50">-50</button>
+                            <input
+                                type="number"
+                                inputMode="numeric"
+                                min={MIN_BID}
+                                step={STEP}
+                                value={bid}
+                                onChange={(e) => setBid(Number(e.target.value))}
+                                onBlur={() => setBid(nextValidStep(bid))}
+                                className={`flex-1 border rounded-xl px-3 py-2 ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            />
+                            <button type="button" onClick={() => nudge(1)} className="px-3 rounded-xl border" aria-label="Increase by 50">+50</button>
+                        </div>
+
+                        <p className={`mt-2 text-xs ${error ? "text-red-600" : dark ? "text-neutral-400" : "text-gray-500"}`}>
+                            Minimum bid is €{MIN_BID}. Bids increase in €{STEP} steps (e.g. 250, 300, 350…). Your bid must be higher than the current bid.
+                        </p>
+                        {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+
                         <div className="mt-3 flex gap-2">
-                            <button className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">Place bid</button>
+                            <button
+                                className={`flex-1 py-2 rounded-xl text-white ${error ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
+                                onClick={placeBid}
+                                disabled={Boolean(error)}
+                            >
+                                Place bid
+                            </button>
                             <button className="py-2 px-3 rounded-xl border" onClick={() => alert("Buy now (mock)")}>Buy now</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Specs & description (unchanged) */}
-            {/* ... keep your existing specs/description blocks ... */}
+            {/* (Keep your specs/description here) */}
 
             {/* Lightbox overlay */}
             {lightbox && (
@@ -585,9 +658,11 @@ function LotDetail({ lots, dark }) {
 }
 
 
+
+
 // ---- App root ----
 export default function App() {
-    const [lots] = useState(MOCK_LISTINGS);
+    const [lots, setLots] = useState(MOCK_LISTINGS);
     const [query, setQuery] = useState("");
     const [category, setCategory] = useState("All");
     const [sortBy, setSortBy] = useState("endingSoon");
@@ -606,7 +681,7 @@ export default function App() {
                 <Header {...{ query, setQuery, dark, setDark }} />
                 <Routes>
                     <Route path="/" element={<Home {...{ lots, query, setQuery, category, setCategory, sortBy, setSortBy, dark }} />} />
-                    <Route path="/lot/:id" element={<LotDetail lots={lots} dark={dark} />} />
+                    <Route path="/lot/:id" element={<LotDetail lots={lots} setLots={setLots} dark={dark} />} />
                     <Route path="*" element={<div className="max-w-5xl mx-auto px-4 py-12">Not found</div>} />
                 </Routes>
                 <footer className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} border-t mt-8`}>
