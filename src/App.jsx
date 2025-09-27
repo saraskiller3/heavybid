@@ -78,11 +78,24 @@ const MOCK_LISTINGS = [
 
 function formatCurrency(num) { return new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(num); }
 function msLeft(iso) { return new Date(iso) - new Date(); }
-function prettyLeft(iso) {
-    const diff = msLeft(iso); if (diff <= 0) return "Closed";
-    const d = Math.floor(diff / 86400000), h = Math.floor((diff / 3600000) % 24), m = Math.floor((diff / 60000) % 60);
-    return `${d}d ${h}h ${m}m`;
+function pad2(n) {
+    const s = Math.floor(Math.max(0, n)).toString();
+    return s.length === 1 ? "0" + s : s;
 }
+
+function prettyLeft(iso) {
+    const diff = new Date(iso) - new Date();
+    if (diff <= 0) return "Closed";
+
+    const totalSeconds = Math.floor(diff / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${days}d ${pad2(hours)}h ${pad2(minutes)}m ${pad2(seconds)}s`;
+}
+
 // ---- Layout & shared UI ----
 function Header({ query, setQuery, dark, setDark }) {
     return (
@@ -249,7 +262,10 @@ function Card({ lot, dark }) {
 function Home({ lots, query, setQuery, category, setCategory, sortBy, setSortBy, dark }) {
     const categories = useMemo(() => ["All", ...new Set(lots.map((l) => l.category))], [lots]);
     const [nowTick, setNowTick] = useState(Date.now());
-    useEffect(() => { const t = setInterval(() => setNowTick(Date.now()), 30000); return () => clearInterval(t); }, []);
+    useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(t);
+    }, []);
 
     const filtered = useMemo(() => {
         let out = lots.filter((l) => `${l.title} ${l.location} ${l.seller}`.toLowerCase().includes(query.toLowerCase()));
@@ -446,7 +462,11 @@ function LotDetail({ lots, dark }) {
     const [bid, setBid] = useState(lot ? lot.currentBid + 1000 : 0);
     const [activeIdx, setActiveIdx] = useState(0);
     const [lightbox, setLightbox] = useState(false);
-
+    const [tick, setTick] = useState(0);
+    useEffect(() => {
+        const t = setInterval(() => setTick((x) => x + 1), 1000);
+        return () => clearInterval(t);
+    }, []);
     if (!lot) {
         return (
             <div className="max-w-5xl mx-auto px-4 py-12">
@@ -525,7 +545,7 @@ function LotDetail({ lots, dark }) {
                     </div>
 
                     <div className={`mt-3 inline-flex items-center gap-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                        <Clock size={14} /> Ends in {prettyLeft(lot.endsAt)}{" "}
+                        <Clock size={14} /> Ends in {prettyLeft(lot.endsAt)}({tick})
                         {lot.reserve && <span className="inline-flex items-center gap-1 ml-2"><CheckCircle2 size={14} /> Reserve</span>}
                     </div>
 
