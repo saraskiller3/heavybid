@@ -256,49 +256,105 @@ function Home({ lots, query, setQuery, category, setCategory, sortBy, setSortBy,
         </main>
     );
 }
+function Lightbox({ src, alt, onClose }) {
+    const [scale, setScale] = useState(1);
+    const [pos, setPos] = useState({ x: 0, y: 0 });
+    const [dragging, setDragging] = useState(false);
+    const [start, setStart] = useState({ x: 0, y: 0 });
+
+
+    useEffect(() => {
+        function onKey(e) {
+            if (e.key === 'Escape') onClose();
+            if (e.key === '+') setScale((s) => Math.min(4, s + 0.2));
+            if (e.key === '-') setScale((s) => Math.max(1, s - 0.2));
+        }
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black/90 cursor-zoom-out" onClick={onClose}>
+            <div className="absolute top-4 right-4 flex gap-2">
+                <button onClick={(e) => { e.stopPropagation(); setScale((s) => Math.max(1, s - 0.2)); }} className="px-3 py-1 rounded-md bg-white/10 text-white">-</button>
+                <button onClick={(e) => { e.stopPropagation(); setScale((s) => Math.min(4, s + 0.2)); }} className="px-3 py-1 rounded-md bg-white/10 text-white">+</button>
+                <button onClick={(e) => { e.stopPropagation(); setScale(1); setPos({ x: 0, y: 0 }); }} className="px-3 py-1 rounded-md bg-white/10 text-white">Reset</button>
+                <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="px-3 py-1 rounded-md bg-white/10 text-white">Close</button>
+            </div>
+            <div
+                className="w-full h-full flex items-center justify-center overflow-hidden"
+                onMouseDown={(e) => { e.preventDefault(); setDragging(true); setStart({ x: e.clientX - pos.x, y: e.clientY - pos.y }); }}
+                onMouseMove={(e) => { if (!dragging) return; setPos({ x: e.clientX - start.x, y: e.clientY - start.y }); }}
+                onMouseUp={() => setDragging(false)}
+                onMouseLeave={() => setDragging(false)}
+                onWheel={(e) => { e.preventDefault(); const delta = e.deltaY > 0 ? -0.1 : 0.1; setScale((s) => Math.min(4, Math.max(1, s + delta))); }}
+            >
+                <img
+                    src={src}
+                    alt={alt}
+                    className="max-w-none select-none"
+                    style={{ transform: `translate(${pos.x}px, ${pos.y}px) scale(${scale})`, transition: dragging ? 'none' : 'transform 120ms ease' }}
+                    draggable={false}
+                    onClick={(e) => e.stopPropagation()}
+                />
+            </div>
+        </div>
+    );
+}
 
 function LotDetail({ lots, dark }) {
     const { id } = useParams();
     const nav = useNavigate();
     const lot = lots.find((l) => l.id === id);
     const [bid, setBid] = useState(lot ? lot.currentBid + 1000 : 0);
+    const [activeIdx, setActiveIdx] = useState(0);
+    const [lightbox, setLightbox] = useState(false);
+
 
     if (!lot) {
         return (
             <div className="max-w-5xl mx-auto px-4 py-12">
-                <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 mb-6">
-                    <ChevronLeft size={16} /> Back
-                </button>
-                <div className={`p-8 rounded-2xl border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
-                    Lot not found.
-                </div>
+                <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 mb-6"><ChevronLeft size={16} /> Back</button>
+                <div className={`p-8 rounded-2xl border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>Lot not found.</div>
             </div>
         );
     }
 
+
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
-            <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 mb-6">
-                <ChevronLeft size={16} /> Back
-            </button>
+            <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 mb-6"><ChevronLeft size={16} /> Back</button>
+
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Gallery */}
                 <div className={`lg:col-span-2 rounded-2xl overflow-hidden border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
                     {/* Main image shown fully (no crop) */}
-                    <div className={`${dark ? "bg-neutral-900" : "bg-white"} w-full`} style={{ aspectRatio: "16 / 9" }}>
-                        <img src={lot.images[0]} alt={lot.title} className="w-full h-full object-contain" />
-                    </div>
+                    <button
+                        onClick={() => setLightbox(true)}
+                        className={`${dark ? "bg-neutral-900" : "bg-white"} w-full cursor-zoom-in`}
+                        style={{ aspectRatio: "16 / 9" }}
+                    >
+                        <img src={lot.images[activeIdx]} alt={lot.title} className="w-full h-full object-contain" />
+                    </button>
 
-                    {/* Thumbnails (no crop) */}
+
+                    {/* Thumbnails */}
                     <div className="grid grid-cols-3 gap-2 p-3">
                         {lot.images.map((src, i) => (
-                            <div key={i} className={`${dark ? "bg-neutral-900" : "bg-white"} w-full rounded-lg`} style={{ aspectRatio: "4 / 3" }}>
-                                <img src={src} alt="thumb" loading="lazy" className="w-full h-full object-contain rounded-lg" />
-                            </div>
+                            <button
+                                key={i}
+                                onClick={() => setActiveIdx(i)}
+                                className={`${dark ? "bg-neutral-900" : "bg-white"} w-full rounded-lg ring-offset-2 focus:outline-none focus:ring-2 ${i === activeIdx ? 'ring-blue-500' : 'ring-transparent'}`}
+                                style={{ aspectRatio: "4 / 3" }}
+                            >
+                                <img src={src} alt={`thumb ${i + 1}`} loading="lazy" className="w-full h-full object-contain rounded-lg" />
+                            </button>
                         ))}
                     </div>
                 </div>
+
 
                 {/* Side panel */}
                 <div className={`rounded-2xl border p-4 h-max ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
@@ -306,6 +362,7 @@ function LotDetail({ lots, dark }) {
                     <p className={`mt-1 text-sm flex items-center gap-1 ${dark ? "text-neutral-400" : "text-gray-500"}`}>
                         <MapPin size={14} /> {lot.location}
                     </p>
+
 
                     <div className="mt-4 grid grid-cols-2 gap-3">
                         <div className={`rounded-xl border p-3 ${dark ? "bg-neutral-800 border-neutral-700" : "bg-gray-50"}`}>
@@ -318,29 +375,22 @@ function LotDetail({ lots, dark }) {
                         </div>
                     </div>
 
+
                     <div className={`mt-3 inline-flex items-center gap-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                        <Clock size={14} /> Ends in {prettyLeft(lot.endsAt)}{" "}
+                        <Clock size={14} /> Ends in {prettyLeft(lot.endsAt)} {" "}
                         {lot.reserve && (
-                            <span className="inline-flex items-center gap-1 ml-2">
-                                <CheckCircle2 size={14} /> Reserve
-                            </span>
+                            <span className="inline-flex items-center gap-1 ml-2"><CheckCircle2 size={14} /> Reserve</span>
                         )}
                     </div>
 
+
                     <div className="mt-4">
                         <label className={`text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>Your bid (EUR)</label>
-                        <input
-                            type="number"
-                            value={bid}
-                            min={lot.currentBid + 1}
-                            onChange={(e) => setBid(Number(e.target.value))}
-                            className={`mt-1 w-full border rounded-xl px-3 py-2 ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
-                        />
+                        <input type="number" value={bid} min={lot.currentBid + 1} onChange={(e) => setBid(Number(e.target.value))}
+                            className={`mt-1 w-full border rounded-xl px-3 py-2 ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
                         <div className="mt-3 flex gap-2">
                             <button className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">Place bid</button>
-                            <button className="py-2 px-3 rounded-xl border" onClick={() => alert("Buy now (mock)")}>
-                                Buy now
-                            </button>
+                            <button className="py-2 px-3 rounded-xl border" onClick={() => alert("Buy now (mock)")}>Buy now</button>
                         </div>
                     </div>
                 </div>
@@ -381,6 +431,14 @@ function LotDetail({ lots, dark }) {
                     )}
                 </div>
             </div>
+            {/* Lightbox overlay */}
+            {lightbox && (
+                <Lightbox
+                    src={lot.images[activeIdx]}
+                    alt={lot.title}
+                    onClose={() => setLightbox(false)}
+                />
+            )}
         </div>
     );
 }
