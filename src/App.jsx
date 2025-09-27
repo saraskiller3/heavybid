@@ -38,10 +38,11 @@ const MOCK_LISTINGS = [
         title: "2018 Volvo L120 Wheel Loader",
         location: "Vilnius, Lithuania",
         images: [
+            "/images/img1.jpg",
             "https://placehold.co/1600x1000?text=Volvo+L120+Wheel+Loader",
             "https://placehold.co/1600x1000?text=Volvo+L120+-+Bucket",
             "https://placehold.co/1600x1000?text=Volvo+L120+-+Rear+View",
-            "https://images.unsplash.com/photo-1622040065448-3ae9561d7e77?q=80&w=1600&auto=format&fit=crop",
+           
             "https://images.unsplash.com/photo-1592982537447-1b8b3a8f2a0b?q=80&w=1600&auto=format&fit=crop",
         ],
         year: 2018,
