@@ -3,9 +3,8 @@
 // If you haven't yet: npm install react-router-dom framer-motion lucide-react
 
 import React, { useMemo, useState, useEffect } from "react";
-import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Link, useParams, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import { Search, Clock, MapPin, Sun, Moon, ChevronLeft, CheckCircle2 } from "lucide-react";
 
 // ---- Mock data (expandable / replace with API later) ----
@@ -15,6 +14,9 @@ const MOCK_LISTINGS = [
         title: "2014 Komatsu PC210-8 Excavator",
         location: "Riga, Latvia",
         images: [
+            "https://placehold.co/1600x1000?text=Komatsu+PC210-8+Excavator",
+            "https://placehold.co/1600x1000?text=Komatsu+PC210-8+-+Side+View",
+            "https://placehold.co/1600x1000?text=Komatsu+PC210-8+-+Cabin",
             "https://images.unsplash.com/photo-1593941707882-a5bba14938c2?q=80&w=1600&auto=format&fit=crop",
             "https://images.unsplash.com/photo-1581092921254-3d5a3b00b17e?q=80&w=1600&auto=format&fit=crop",
         ],
@@ -36,6 +38,9 @@ const MOCK_LISTINGS = [
         title: "2018 Volvo L120 Wheel Loader",
         location: "Vilnius, Lithuania",
         images: [
+            "https://placehold.co/1600x1000?text=Volvo+L120+Wheel+Loader",
+            "https://placehold.co/1600x1000?text=Volvo+L120+-+Bucket",
+            "https://placehold.co/1600x1000?text=Volvo+L120+-+Rear+View",
             "https://images.unsplash.com/photo-1622040065448-3ae9561d7e77?q=80&w=1600&auto=format&fit=crop",
             "https://images.unsplash.com/photo-1592982537447-1b8b3a8f2a0b?q=80&w=1600&auto=format&fit=crop",
         ],
@@ -57,6 +62,9 @@ const MOCK_LISTINGS = [
         title: "2016 Caterpillar D6 Bulldozer",
         location: "Tallinn, Estonia",
         images: [
+            "https://placehold.co/1600x1000?text=Caterpillar+D6+Bulldozer",
+            "https://placehold.co/1600x1000?text=Caterpillar+D6+-+Blade",
+            "https://placehold.co/1600x1000?text=Caterpillar+D6+-+Cab",
             "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=1600&auto=format&fit=crop",
             "https://images.unsplash.com/photo-1581093588401-2f5a7d9b4f3c?q=80&w=1600&auto=format&fit=crop",
         ],
@@ -82,7 +90,6 @@ function prettyLeft(iso) {
     const d = Math.floor(diff / 86400000), h = Math.floor((diff / 3600000) % 24), m = Math.floor((diff / 60000) % 60);
     return `${d}d ${h}h ${m}m`;
 }
-
 // ---- Layout & shared UI ----
 function Header({ query, setQuery, dark, setDark }) {
     return (
@@ -121,7 +128,7 @@ function Header({ query, setQuery, dark, setDark }) {
 
 function Filters({ categories, category, setCategory, sortBy, setSortBy, query, setQuery, dark }) {
     return (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+        <Motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
             className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} rounded-2xl shadow-sm border p-4 sticky top-20`}>
             <div>
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Category</label>
@@ -147,19 +154,32 @@ function Filters({ categories, category, setCategory, sortBy, setSortBy, query, 
                     <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"}`} />
                 </div>
             </div>
-        </motion.div>
+        </Motion.div>
+    );
+}
+function ImageWithFallback({ src, alt, className }) {
+    const [failed, setFailed] = React.useState(false);
+    const placeholder = `https://placehold.co/1200x800?text=${encodeURIComponent(alt || 'Heavy machinery')}`;
+    return (
+        <img
+            src={failed ? placeholder : src}
+            alt={alt}
+            loading="lazy"
+            onError={() => setFailed(true)}
+            className={className}
+        />
     );
 }
 
 function Card({ lot, dark }) {
     return (
         <Link to={`/lot/${lot.id}`}>
-            <motion.article
+            <Motion.article
                 whileHover={{ y: -3, boxShadow: "0 10px 25px rgba(0,0,0,0.06)" }}
                 className={`group rounded-2xl border shadow-sm overflow-hidden flex flex-col transition-shadow ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}
             >
                 <div className="relative">
-                    <img src={lot.images[0]} alt={lot.title} loading="lazy" className="w-full h-44 object-cover" />
+                    <ImageWithFallback src={lot.images[0]} alt={lot.title} loading="lazy" className="w-full h-44 object-cover" />
                     <div className={`absolute top-3 left-3 px-2 py-1 rounded-md text-xs font-semibold ${dark ? "bg-neutral-800/90" : "bg-white/90"}`}>{lot.category}</div>
                     <div className={`absolute top-3 right-3 px-2 py-1 rounded-md text-xs flex items-center gap-1 ${dark ? "bg-neutral-800/90" : "bg-white/90"}`}>
                         <Clock size={14} /> {prettyLeft(lot.endsAt)}
@@ -179,7 +199,7 @@ function Card({ lot, dark }) {
                         </div>
                     </div>
                 </div>
-            </motion.article>
+            </Motion.article>
         </Link>
     );
 }
@@ -210,16 +230,22 @@ function Home({ lots, query, setQuery, category, setCategory, sortBy, setSortBy,
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <AnimatePresence>
                         {filtered.map((l) => (
-                            <motion.div key={l.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}>
+                            <Motion.div
+                                key={l.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                            >
                                 <Card lot={l} dark={dark} />
-                            </motion.div>
+                            </Motion.div>
                         ))}
                     </AnimatePresence>
+
                 </div>
                 {filtered.length === 0 && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`mt-8 p-6 rounded-2xl border text-center ${dark ? "bg-neutral-900 border-neutral-800 text-neutral-300" : "bg-white text-gray-600"}`}>
+                    <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`mt-8 p-6 rounded-2xl border text-center ${dark ? "bg-neutral-900 border-neutral-800 text-neutral-300" : "bg-white text-gray-600"}`}>
                         No listings match your filters. <button onClick={() => { setQuery(""); setCategory("All"); }} className="underline">Reset filters</button>
-                    </motion.div>
+                    </Motion.div>
                 )}
             </section>
         </main>
@@ -245,10 +271,10 @@ function LotDetail({ lots, dark }) {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Gallery */}
                 <div className={`lg:col-span-2 rounded-2xl overflow-hidden border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
-                    <img src={lot.images[0]} alt={lot.title} className="w-full h-[380px] object-cover" />
+                    <ImageWithFallback src={lot.images[0]} alt={lot.title} className="w-full h-[380px] object-cover" />
                     <div className="grid grid-cols-3 gap-2 p-3">
                         {lot.images.map((src, i) => (
-                            <img key={i} src={src} alt="thumb" loading="lazy" className="w-full h-24 object-cover rounded-lg" />
+                            <ImageWithFallback key={i} src={src} alt="thumb" loading="lazy" className="w-full h-24 object-cover rounded-lg" />
                         ))}
                     </div>
                 </div>
@@ -317,14 +343,21 @@ function LotDetail({ lots, dark }) {
 
 // ---- App root ----
 export default function App() {
-    const [lots, setLots] = useState(MOCK_LISTINGS);
+    const [lots] = useState(MOCK_LISTINGS);
     const [query, setQuery] = useState("");
     const [category, setCategory] = useState("All");
     const [sortBy, setSortBy] = useState("endingSoon");
     const [dark, setDark] = useState(false);
 
+
+    // ? Ensure Tailwind dark mode works: add/remove the 'dark' class on <html>
+    useEffect(() => {
+        document.documentElement.classList.toggle('dark', dark);
+    }, [dark]);
+
+
     return (
-        <div className={dark ? "dark bg-neutral-950 text-white min-h-screen" : "bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900 min-h-screen"}>
+        <div className={dark ? "bg-neutral-950 text-white min-h-screen" : "bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900 min-h-screen"}>
             <BrowserRouter>
                 <Header {...{ query, setQuery, dark, setDark }} />
                 <Routes>
