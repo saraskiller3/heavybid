@@ -483,13 +483,20 @@ function Home({
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <Motion.div initial={{ opacity: 1 }} />
-                    {filtered.map((l) => (
-                        <Motion.div key={l.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                            <Card lot={l} dark={dark} />
-                        </Motion.div>
-                    ))}
+                    <AnimatePresence>
+                        {filtered.map((l) => (
+                            <Motion.div
+                                key={l.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                            >
+                                <Card lot={l} dark={dark} />
+                            </Motion.div>
+                        ))}
+                    </AnimatePresence>
                 </div>
+
 
                 {filtered.length === 0 && (
                     <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
