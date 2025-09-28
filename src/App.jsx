@@ -17,11 +17,12 @@ const MOCK_LISTINGS = [
         images: [
             "/images/komatsu/img1.jpg",
             "/images/komatsu/img2.jpg",
-             "/images/komatsu/img3.png",
+            "/images/komatsu/img3.png",
         ],
         year: 2014,
         hours: 8200,
         condition: "Used",
+        hasDefects: false,
         currentBid: 28000,
         reserve: true,
         buyNow: 34000,
@@ -44,6 +45,7 @@ const MOCK_LISTINGS = [
         year: 2018,
         hours: 5400,
         condition: "Used",
+        hasDefects: true,
         currentBid: 42000,
         reserve: false,
         buyNow: 52000,
@@ -65,6 +67,7 @@ const MOCK_LISTINGS = [
         year: 2016,
         hours: 12500,
         condition: "Used",
+        hasDefects: false,
         currentBid: 65000,
         reserve: true,
         buyNow: 78000,
@@ -86,7 +89,8 @@ const MOCK_LISTINGS = [
         ],
         year: 2024,
         hours: 0,
-        condition: "Brand new",
+        condition: "New",
+        hasDefects: false,
         currentBid: 3000000,
         reserve: false,
         buyNow: 4000000,
@@ -121,10 +125,6 @@ function msLeft(iso) { return new Date(iso) - new Date(); }
 function pad2(n) {
     const s = Math.floor(Math.max(0, n)).toString();
     return s.length === 1 ? "0" + s : s;
-}
-function getCountry(location = "") {
-    const parts = location.split(",").map(s => s.trim());
-    return parts[parts.length - 1] || "";
 }
 
 function prettyLeft(iso) {
@@ -177,27 +177,26 @@ function Header({ query, setQuery, dark, setDark }) {
 }
 
 function Filters({
-    // interdependent dropdowns
-    categories, category, setCategory,
-    countries, country, setCountry,
-    categoryCounts,      // Map<string, number> (conditioned by country)
-    countryCounts,       // Map<string, number> (conditioned by category)
-
-    // search/sort/price
+    dark,
+    // search/sort
     sortBy, setSortBy,
     query, setQuery,
+    // country/category (interdependent)
+    countries, country, setCountry, countryCounts,
+    categories, category, setCategory, categoryCounts,
+    // condition / defects (interdependent)
+    conditions, condition, setCondition, conditionCounts,
+    defectsList, defects, setDefects, defectsCounts,
+    // price
     priceSteps, priceMin, priceMax, setPriceMin, setPriceMax,
-
-    // theme
-    dark,
 }) {
+    const Count = ({ map }) => Array.from(map.values()).reduce((a, b) => a + b, 0);
+
     return (
-        <Motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} rounded-2xl shadow-sm border p-4 sticky top-20`}
-        >
-            {/* Country (narrows by selected Category) */}
+        <Motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} rounded-2xl shadow-sm border p-4 sticky top-20`}>
+
+            {/* Country */}
             <div>
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Country</label>
                 <select
@@ -205,18 +204,14 @@ function Filters({
                     onChange={(e) => setCountry(e.target.value)}
                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                 >
-                    <option value="All">
-                        All ({Array.from(countryCounts.values()).reduce((a, b) => a + b, 0)})
-                    </option>
-                    {countries.filter((c) => c !== "All").map((c) => (
-                        <option key={c} value={c}>
-                            {c} ({countryCounts.get(c) || 0})
-                        </option>
+                    <option value="All">All ({<Count map={countryCounts} />})</option>
+                    {countries.filter(c => c !== "All").map((c) => (
+                        <option key={c} value={c}>{c} ({countryCounts.get(c) || 0})</option>
                     ))}
                 </select>
             </div>
 
-            {/* Category (narrows by selected Country) */}
+            {/* Category */}
             <div className="mt-4">
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Category</label>
                 <select
@@ -224,13 +219,39 @@ function Filters({
                     onChange={(e) => setCategory(e.target.value)}
                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                 >
-                    <option value="All">
-                        All ({Array.from(categoryCounts.values()).reduce((a, b) => a + b, 0)})
-                    </option>
-                    {categories.filter((c) => c !== "All").map((c) => (
-                        <option key={c} value={c}>
-                            {c} ({categoryCounts.get(c) || 0})
-                        </option>
+                    <option value="All">All ({<Count map={categoryCounts} />})</option>
+                    {categories.filter(c => c !== "All").map((c) => (
+                        <option key={c} value={c}>{c} ({categoryCounts.get(c) || 0})</option>
+                    ))}
+                </select>
+            </div>
+
+            {/* Condition */}
+            <div className="mt-4">
+                <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Condition</label>
+                <select
+                    value={condition}
+                    onChange={(e) => setCondition(e.target.value)}
+                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                >
+                    <option value="All">All ({<Count map={conditionCounts} />})</option>
+                    {conditions.filter(c => c !== "All").map((c) => (
+                        <option key={c} value={c}>{c} ({conditionCounts.get(c) || 0})</option>
+                    ))}
+                </select>
+            </div>
+
+            {/* Defects */}
+            <div className="mt-4">
+                <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Defects</label>
+                <select
+                    value={defects}
+                    onChange={(e) => setDefects(e.target.value)}
+                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                >
+                    <option value="All">All ({<Count map={defectsCounts} />})</option>
+                    {defectsList.filter(c => c !== "All").map((c) => (
+                        <option key={c} value={c}>{c} ({defectsCounts.get(c) || 0})</option>
                     ))}
                 </select>
             </div>
@@ -249,7 +270,7 @@ function Filters({
                 </select>
             </div>
 
-            {/* Quick search */}
+            {/* Search */}
             <div className="mt-4">
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Quick search</label>
                 <div className="relative">
@@ -257,13 +278,9 @@ function Filters({
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder="Komatsu, Riga, seller..."
-                        className={`mt-1 w-full border rounded-xl pl-9 pr-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white placeholder-neutral-400" : ""
-                            }`}
+                        className={`mt-1 w-full border rounded-xl pl-9 pr-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white placeholder-neutral-400" : ""}`}
                     />
-                    <Search
-                        size={16}
-                        className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"}`}
-                    />
+                    <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"}`} />
                 </div>
             </div>
 
@@ -271,7 +288,6 @@ function Filters({
             <div className="mt-4">
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Price range (current bid)</label>
                 <div className="mt-1 grid grid-cols-2 gap-2">
-                    {/* Min */}
                     <select
                         value={priceMin}
                         onChange={(e) => {
@@ -282,13 +298,9 @@ function Filters({
                         className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                     >
                         {priceSteps.map((v) => (
-                            <option key={`min-${v}`} value={v}>
-                                {"\u20AC"}{v.toLocaleString()}
-                            </option>
+                            <option key={`min-${v}`} value={v}>{"\u20AC"}{v.toLocaleString()}</option>
                         ))}
                     </select>
-
-                    {/* Max */}
                     <select
                         value={priceMax}
                         onChange={(e) => {
@@ -298,10 +310,8 @@ function Filters({
                         }}
                         className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                     >
-                        {priceSteps.filter((v) => v >= priceMin).map((v) => (
-                            <option key={`max-${v}`} value={v}>
-                                {"\u20AC"}{v.toLocaleString()}
-                            </option>
+                        {priceSteps.filter(v => v >= priceMin).map((v) => (
+                            <option key={`max-${v}`} value={v}>{"\u20AC"}{v.toLocaleString()}</option>
                         ))}
                     </select>
                 </div>
@@ -309,6 +319,7 @@ function Filters({
         </Motion.div>
     );
 }
+
 
 
 
@@ -414,18 +425,23 @@ function Card({ lot, dark }) {
     );
 }
 
-
+function getCountry(location = "") {
+    const parts = location.split(",").map(s => s.trim());
+    return parts[parts.length - 1] || "";
+}
 
 // ---- Pages ----
 function Home({
     lots, query, setQuery, category, setCategory, sortBy, setSortBy, dark,
     country, setCountry,
+    condition, setCondition,
+    defects, setDefects,
     priceSteps, priceMin, priceMax, setPriceMin, setPriceMax
 }) {
     const [_tick, setTick] = useState(0);
     useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 1000); return () => clearInterval(t); }, []);
 
-    // Base set: only text + price filters (no country/category yet)
+    // Base list: only text + price filters
     const baseFiltered = useMemo(() => {
         let out = lots.filter((l) =>
             `${l.title} ${l.location} ${l.seller}`.toLowerCase().includes(query.toLowerCase())
@@ -434,87 +450,151 @@ function Home({
         return out;
     }, [lots, query, priceMin, priceMax]);
 
-    // === Conditioned counts ===
-    // Countries view: if a category is chosen, count only items in that category
-    const countryCountsView = useMemo(() => {
+
+    // Build a source set based on all current selections EXCEPT the dimension we’re counting
+    const byCountrySource = useMemo(() => baseFiltered
+        .filter(l => (category === "All" ? true : l.category === category))
+        .filter(l => (condition === "All" ? true : l.condition === condition))
+        .filter(l => (defects === "All" ? true : (l.hasDefects ? "With defects" : "Without defects") === defects))
+        , [baseFiltered, category, condition, defects]);
+
+    const byCategorySource = useMemo(() => baseFiltered
+        .filter(l => (country === "All" ? true : getCountry(l.location) === country))
+        .filter(l => (condition === "All" ? true : l.condition === condition))
+        .filter(l => (defects === "All" ? true : (l.hasDefects ? "With defects" : "Without defects") === defects))
+        , [baseFiltered, country, condition, defects]);
+
+    const byConditionSource = useMemo(() => baseFiltered
+        .filter(l => (country === "All" ? true : getCountry(l.location) === country))
+        .filter(l => (category === "All" ? true : l.category === category))
+        .filter(l => (defects === "All" ? true : (l.hasDefects ? "With defects" : "Without defects") === defects))
+        , [baseFiltered, country, category, defects]);
+
+    const byDefectsSource = useMemo(() => baseFiltered
+        .filter(l => (country === "All" ? true : getCountry(l.location) === country))
+        .filter(l => (category === "All" ? true : l.category === category))
+        .filter(l => (condition === "All" ? true : l.condition === condition))
+        , [baseFiltered, country, category, condition]);
+
+    // Counts (Maps) for each dimension, from its respective source
+    const countryCounts = useMemo(() => {
         const m = new Map();
-        const src = category === "All" ? baseFiltered : baseFiltered.filter(l => l.category === category);
-        for (const l of src) {
+        for (const l of byCountrySource) {
             const c = getCountry(l.location);
             m.set(c, (m.get(c) || 0) + 1);
         }
         return m;
-    }, [baseFiltered, category]);
+    }, [byCountrySource]);
 
-    // Categories view: if a country is chosen, count only items in that country
-    const categoryCountsView = useMemo(() => {
+    const categoryCounts = useMemo(() => {
         const m = new Map();
-        const src = country === "All" ? baseFiltered : baseFiltered.filter(l => getCountry(l.location) === country);
-        for (const l of src) {
+        for (const l of byCategorySource) {
             m.set(l.category, (m.get(l.category) || 0) + 1);
         }
         return m;
-    }, [baseFiltered, country]);
+    }, [byCategorySource]);
 
-    // Build dropdown option arrays from the conditioned views
-    const countries = useMemo(() => {
-        const arr = Array.from(countryCountsView.keys()).sort((a, b) => a.localeCompare(b));
-        return ["All", ...arr];
-    }, [countryCountsView]);
-
-    const categories = useMemo(() => {
-        const arr = Array.from(categoryCountsView.keys()).sort((a, b) => a.localeCompare(b));
-        return ["All", ...arr];
-    }, [categoryCountsView]);
-
-    // Auto-fix an invalid selection when the other dropdown changes
-    useEffect(() => {
-        if (country !== "All" && !countryCountsView.has(country)) {
-            const first = Array.from(countryCountsView.keys())[0];
-            setCountry(first ? first : "All");
+    const conditionCounts = useMemo(() => {
+        const m = new Map();
+        for (const l of byConditionSource) {
+            m.set(l.condition, (m.get(l.condition) || 0) + 1); // "Used" / "New"
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [category, countryCountsView]);
+        return m;
+    }, [byConditionSource]);
+
+    const defectsCounts = useMemo(() => {
+        const m = new Map();
+        for (const l of byDefectsSource) {
+            const key = l.hasDefects ? "With defects" : "Without defects";
+            m.set(key, (m.get(key) || 0) + 1);
+        }
+        return m;
+    }, [byDefectsSource]);
+
+    // Option arrays (All + sorted keys from maps)
+    const countries = useMemo(() => ["All", ...Array.from(countryCounts.keys()).sort()], [countryCounts]);
+    const categories = useMemo(() => ["All", ...Array.from(categoryCounts.keys()).sort()], [categoryCounts]);
+    const conditions = useMemo(() => {
+        const keys = Array.from(conditionCounts.keys());
+        const order = ["Used", "New"];
+        const sorted = order.filter(k => keys.includes(k));
+        return ["All", ...sorted];
+    }, [conditionCounts]);
+    const defectsList = useMemo(() => {
+        const keys = Array.from(defectsCounts.keys());
+        const order = ["With defects", "Without defects"];
+        const sorted = order.filter(k => keys.includes(k));
+        return ["All", ...sorted];
+    }, [defectsCounts]);
+
+    // Auto-correct invalid selections when the available options change
+    useEffect(() => {
+        if (country !== "All" && !countryCounts.has(country)) {
+            const first = countries[1]; setCountry(first ?? "All");
+        }
+    }, [countries, country, countryCounts, setCountry]);
 
     useEffect(() => {
-        if (category !== "All" && !categoryCountsView.has(category)) {
-            const first = Array.from(categoryCountsView.keys())[0];
-            setCategory(first ? first : "All");
+        if (category !== "All" && !categoryCounts.has(category)) {
+            const first = categories[1]; setCategory(first ?? "All");
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [country, categoryCountsView]);
+    }, [categories, category, categoryCounts, setCategory]);
 
-    // Final list applies BOTH filters + sort
+    useEffect(() => {
+        if (condition !== "All" && !conditionCounts.has(condition)) {
+            const first = conditions[1]; setCondition(first ?? "All");
+        }
+    }, [conditions, condition, conditionCounts, setCondition]);
+
+    useEffect(() => {
+        if (defects !== "All" && !defectsCounts.has(defects)) {
+            const first = defectsList[1]; setDefects(first ?? "All");
+        }
+    }, [defectsList, defects, defectsCounts, setDefects]);
+
+    // Final list applies ALL four filters + sort
     const filtered = useMemo(() => {
         let out = baseFiltered;
-        if (country !== "All") out = out.filter((l) => getCountry(l.location) === country);
-        if (category !== "All") out = out.filter((l) => l.category === category);
+        if (country !== "All") out = out.filter(l => getCountry(l.location) === country);
+        if (category !== "All") out = out.filter(l => l.category === category);
+        if (condition !== "All") out = out.filter(l => l.condition === condition);
+        if (defects !== "All") out = out.filter(l => (l.hasDefects ? "With defects" : "Without defects") === defects);
 
         if (sortBy === "endingSoon") out = out.slice().sort((a, b) => msLeft(a.endsAt) - msLeft(b.endsAt));
         if (sortBy === "priceHigh") out = out.slice().sort((a, b) => b.currentBid - a.currentBid);
         if (sortBy === "priceLow") out = out.slice().sort((a, b) => a.currentBid - b.currentBid);
         return out;
-    }, [baseFiltered, country, category, sortBy]);
+    }, [baseFiltered, country, category, condition, defects, sortBy]);
 
-
+    // …return markup (your existing JSX is fine) …
+    // Just make sure you pass the new props down to <Filters /> below:
     return (
         <main className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-4 gap-6">
             <aside className="md:col-span-1">
                 <Filters
-                    {...{ categories, category, setCategory, sortBy, setSortBy, query, setQuery, dark }}
+                    {...{ dark, sortBy, setSortBy, query, setQuery }}
+                    categories={categories}
+                    category={category}
+                    setCategory={setCategory}
+                    categoryCounts={categoryCounts}
+                    countries={countries}
+                    country={country}
+                    setCountry={setCountry}
+                    countryCounts={countryCounts}
+                    conditions={conditions}
+                    condition={condition}
+                    setCondition={setCondition}
+                    conditionCounts={conditionCounts}
+                    defectsList={defectsList}
+                    defects={defects}
+                    setDefects={setDefects}
+                    defectsCounts={defectsCounts}
                     priceSteps={priceSteps}
                     priceMin={priceMin}
                     priceMax={priceMax}
                     setPriceMin={setPriceMin}
                     setPriceMax={setPriceMax}
-                    // conditioned maps + option arrays
-                    categoryCounts={categoryCountsView}
-                    countries={countries}
-                    country={country}
-                    setCountry={setCountry}
-                    countryCounts={countryCountsView}
                 />
-
             </aside>
 
             <section className="md:col-span-3">
@@ -550,7 +630,8 @@ function Home({
                         className={`mt-8 p-6 rounded-2xl border text-center ${dark ? "bg-neutral-900 border-neutral-800 text-neutral-300" : "bg-white text-gray-600"}`}>
                         No listings match your filters{" "}
                         <button
-                            onClick={() => { setQuery(""); setCategory("All"); setCountry("All"); setPriceMin(0); setPriceMax(priceSteps[priceSteps.length - 1] || 0); }}
+                            onClick={() => {
+                                setQuery(""); setCategory("All"); setCountry("All"); setCondition("All"); setDefects("All"); setPriceMin(0); setPriceMax(priceSteps[priceSteps.length - 1] || 0); }}
                             className="underline"
                         >
                             Reset filters
@@ -1033,6 +1114,8 @@ export default function App() {
     const [query, setQuery] = useState("");
     const [category, setCategory] = useState("All");
     const [country, setCountry] = useState("All");
+    const [condition, setCondition] = useState("All");   // ?? new
+    const [defects, setDefects] = useState("All"); 
     const [sortBy, setSortBy] = useState("endingSoon");
     const [dark, setDark] = useState(false);
 
@@ -1070,6 +1153,8 @@ export default function App() {
                             <Home
                                 {...{ lots, query, setQuery, category, setCategory, sortBy, setSortBy, dark }}
                                 {...{ country, setCountry }}
+                                {...{ condition, setCondition }}
+                                {...{ defects, setDefects }} 
                                 priceSteps={priceSteps}
                                 priceMin={priceMin}
                                 priceMax={priceMax}
