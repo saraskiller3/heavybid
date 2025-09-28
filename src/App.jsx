@@ -5,7 +5,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Link, useParams, useNavigate } from "react-router-dom";
 import { motion as Motion, AnimatePresence } from "framer-motion";
-import { Search, Clock, MapPin, Sun, Moon, ChevronLeft, ChevronRight, X, CheckCircle2 } from "lucide-react";
+import { Search, Clock, MapPin, Sun, Moon, ChevronLeft, CheckCircle2, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 
 // ---- Mock data (expandable / replace with API later) ----
@@ -173,7 +173,9 @@ function Header({ query, setQuery, dark, setDark }) {
 
                 <div className="flex items-center gap-2">
                     <button className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-sm">Sell equipment</button>
-                    <button className={`px-3 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""}`}>Sign in</button>
+                    <Link to="/signin" className={`px-3 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""}`}>
+                           Sign in
+                         </Link>
                 </div>
             </div>
         </header>
@@ -1160,6 +1162,114 @@ function LotDetail({ lots, setLots, dark }) {
 
 
 
+function SignIn({ dark }) {
+    const nav = useNavigate();
+    const [email, setEmail] = React.useState("");
+    const [password, setPassword] = React.useState("");
+    const [showPw, setShowPw] = React.useState(false);
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState("");
+
+    const validate = () => {
+        if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) return "Please enter a valid email.";
+        if (password.length < 6) return "Password must be at least 6 characters.";
+        return "";
+    };
+
+    const onSubmit = async (e) => {
+        e.preventDefault();
+        const err = validate();
+        if (err) { setError(err); return; }
+        setError("");
+        setLoading(true);
+        // ?? Mock sign-in flow — replace with your API later
+        setTimeout(() => {
+            setLoading(false);
+            alert("Signed in (mock). You can replace this with your real auth later.");
+            nav("/"); // go back to home after sign-in
+        }, 800);
+    };
+
+    return (
+        <div className="max-w-md mx-auto px-4 py-12">
+            <div className={`rounded-2xl border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white border-gray-200"} p-6`}>
+                <h1 className="text-2xl font-semibold">Sign in</h1>
+                <p className={`text-sm mt-1 ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                    Access your HeavyBid account to place bids and manage listings.
+                </p>
+
+                <form onSubmit={onSubmit} className="mt-6 space-y-4">
+                    {/* Email */}
+                    <div>
+                        <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Email</label>
+                        <div className="relative mt-1">
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                autoComplete="email"
+                                placeholder="you@example.com"
+                                className={`w-full border rounded-xl pl-9 pr-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white placeholder-neutral-400" : ""}`}
+                            />
+                            <Mail size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"}`} />
+                        </div>
+                    </div>
+
+                    {/* Password */}
+                    <div>
+                        <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Password</label>
+                        <div className="relative mt-1">
+                            <input
+                                type={showPw ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                autoComplete="current-password"
+                                placeholder="••••••••"
+                                className={`w-full border rounded-xl pl-9 pr-10 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white placeholder-neutral-400" : ""}`}
+                            />
+                            <Lock size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"}`} />
+                            <button
+                                type="button"
+                                onClick={() => setShowPw((s) => !s)}
+                                className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded ${dark ? "hover:bg-neutral-800" : "hover:bg-gray-100"}`}
+                                aria-label={showPw ? "Hide password" : "Show password"}
+                            >
+                                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Error */}
+                    {error && (
+                        <div className={`text-sm ${dark ? "text-red-300" : "text-red-600"}`}>{error}</div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-between pt-2">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-60"
+                        >
+                            {loading ? "Signing in…" : "Sign in"}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => nav(-1)}
+                            className={`px-3 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""}`}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+
+                <div className={`mt-6 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                    Don’t have an account? <span className="underline cursor-pointer" onClick={() => alert("TODO: Sign up page")}>Sign up</span>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 // ---- App root ----
 export default function App() {
@@ -1220,6 +1330,7 @@ export default function App() {
                         }
                     />
                     <Route path="/lot/:id" element={<LotDetail lots={lots} setLots={setLots} dark={dark} />} />
+                    <Route path="/signin" element={<SignIn dark={dark} />} />
                     <Route path="*" element={<div className="max-w-5xl mx-auto px-4 py-12">Not found</div>} />
                 </Routes>
                 <footer className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} border-t mt-8`}>
