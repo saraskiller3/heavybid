@@ -396,6 +396,7 @@ function Card({ lot, dark }) {
                         <FactPill label="Weight" value={lot.specs?.weight} dark={dark} />
                         <FactPill label="Power" value={lot.specs?.power} dark={dark} />
                         <FactPill label="Cond." value={lot.condition} dark={dark} />
+                        <FactPill label="Defects" value={lot.hasDefects ? "With defects" : "Without defects"} dark={dark} />
                     </div>
 
                     {/* Bids */}
@@ -828,13 +829,15 @@ function prettyLabel(key) {
 // Build ordered rows for the specs table
 function buildSpecRows(lot) {
     const rows = [];
-
+    // Defects label (derived)
+     const defectsLabel = lot.hasDefects ? "With defects" : "Without defects";
     // Preferred order for key fields
     rows.push(["Category", lot.category]);
     rows.push(["Year", lot.year]);
     rows.push(["Hours", lot.hours != null ? lot.hours.toLocaleString() : null]);
     rows.push(["Condition", lot.condition]);
     rows.push(["Seller", lot.seller]);
+    rows.push(["Defects", defectsLabel]);
 
     // Common technical fields (shown next if present)
     if (lot.specs) {
@@ -979,6 +982,14 @@ function LotDetail({ lots, setLots, dark }) {
                         <MapPin size={14} /> {lot.location} {" \u00B7 "} {lot.seller}
 
                     </p>
+                    <div className="mt-2 flex gap-2">
+                           <span className={`text-[11px] px-2 py-1 rounded-lg border ${+     lot.hasDefects
+                                       ? (dark ? "border-red-700 text-red-300 bg-red-900/20" : "border-red-200 text-red-700 bg-red-50")
+                                   : (dark ? "border-green-700 text-green-300 bg-green-900/20" : "border-green-200 text-green-700 bg-green-50")
+                               }`}>
+                                 {lot.hasDefects ? "With defects" : "Without defects"}
+                              </span>
+                         </div>
                     {/* Key facts */}
                     <div className="mt-3 flex flex-wrap gap-2">
                         <FactPill label="Category" value={lot.category} dark={dark} />
