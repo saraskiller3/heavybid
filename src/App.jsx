@@ -260,6 +260,16 @@ function ImageWithFallback({ src, alt, className }) {
         />
     );
 }
+function FactPill({ label, value, dark }) {
+    if (!value) return null;
+    return (
+        <div className={`text-[11px] leading-none px-2 py-1 rounded-lg border ${dark ? "border-neutral-700 bg-neutral-800 text-neutral-200" : "border-gray-200 bg-gray-50 text-gray-700"
+            }`}>
+            <span className={`${dark ? "text-neutral-400" : "text-gray-500"}`}>{label}: </span>
+            <span className="font-medium">{value}</span>
+        </div>
+    );
+}
 
 function Card({ lot, dark }) {
     return (
@@ -298,6 +308,15 @@ function Card({ lot, dark }) {
                 </div>
 
                 <div className="p-4 flex-1 flex flex-col">
+                    {/* Quick facts */}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                        <FactPill label="Year" value={lot.year} dark={dark} />
+                        <FactPill label="Hours" value={lot.hours?.toLocaleString?.()} dark={dark} />
+                        <FactPill label="Weight" value={lot.specs?.weight} dark={dark} />
+                        <FactPill label="Power" value={lot.specs?.power} dark={dark} />
+                        <FactPill label="Cond." value={lot.condition} dark={dark} />
+                    </div>
+
                     <h3 className="font-semibold text-base leading-snug line-clamp-2">
                         {lot.title}
                     </h3>
@@ -716,6 +735,61 @@ function LotDetail({ lots, setLots, dark }) {
                         <MapPin size={14} /> {lot.location} {" \u00B7 "} {lot.seller}
 
                     </p>
+                    {/* Key facts */}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        <FactPill label="Category" value={lot.category} dark={dark} />
+                        <FactPill label="Year" value={lot.year} dark={dark} />
+                        <FactPill label="Hours" value={lot.hours?.toLocaleString?.()} dark={dark} />
+                        <FactPill label="Condition" value={lot.condition} dark={dark} />
+                        <FactPill label="Seller" value={lot.seller} dark={dark} />
+                        <FactPill label="Engine" value={lot.specs?.engine} dark={dark} />
+                        <FactPill label="Power" value={lot.specs?.power} dark={dark} />
+                        <FactPill label="Weight" value={lot.specs?.weight} dark={dark} />
+                    </div>
+                    {/* Specifications & Description */}
+                    <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Specifications panel */}
+                        <div className={`rounded-2xl border p-4 ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
+                            <h3 className="font-semibold mb-3">Specifications</h3>
+                            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                                {/* fixed, prominent facts */}
+                                <dt className="text-gray-500 dark:text-neutral-400">Year</dt>
+                                <dd>{lot.year}</dd>
+
+                                <dt className="text-gray-500 dark:text-neutral-400">Hours</dt>
+                                <dd>{lot.hours?.toLocaleString?.()}</dd>
+
+                                <dt className="text-gray-500 dark:text-neutral-400">Condition</dt>
+                                <dd>{lot.condition}</dd>
+
+                                {/* auto-fill the rest from lot.specs */}
+                                {Object.entries(lot.specs || {}).map(([k, v]) => (
+                                    <React.Fragment key={k}>
+                                        <dt className="text-gray-500 dark:text-neutral-400 capitalize">{k}</dt>
+                                        <dd>{v}</dd>
+                                    </React.Fragment>
+                                ))}
+                            </dl>
+                        </div>
+
+                        {/* Description panel */}
+                        <div className={`rounded-2xl border p-4 lg:col-span-2 ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
+                            <h3 className="font-semibold mb-3">Description</h3>
+                            <p className="text-sm leading-relaxed opacity-90">{lot.description}</p>
+
+                            {lot.documents?.length > 0 && (
+                                <div className="mt-4">
+                                    <h4 className="text-sm font-medium mb-2">Documents</h4>
+                                    <ul className="list-disc pl-5 text-sm opacity-90">
+                                        {lot.documents.map((d) => (
+                                            <li key={d}>{d}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
 
                     <div className="mt-4 grid grid-cols-2 gap-3">
                         <div className={`rounded-xl border p-3 ${dark ? "bg-neutral-800 border-neutral-700" : "bg-gray-50"}`}>
