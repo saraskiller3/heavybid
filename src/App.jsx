@@ -275,30 +275,24 @@ function Card({ lot, dark }) {
     return (
         <Link to={`/lot/${lot.id}`}>
             <Motion.article
-                whileHover={{ y: -3, boxShadow: "0 10px 25px rgba(0,0,0,0.06)" }}
+                whileHover={{ y: -4, boxShadow: "0 12px 28px rgba(0,0,0,0.08)" }}
                 className={`group rounded-2xl border shadow-sm overflow-hidden flex flex-col transition-shadow ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"
                     }`}
             >
+                {/* Image */}
                 <div className="relative">
-                    <div
-                        className={`${dark ? "bg-neutral-900" : "bg-white"} w-full`}
-                        style={{ aspectRatio: "16 / 9" }}
-                    >
-                        <img
-                            src={lot.images[0]}
-                            alt={lot.title}
-                            loading="lazy"
-                            className="w-full h-full object-contain"
-                        />
-                    </div>
-
+                    <img
+                        src={lot.images[0]}
+                        alt={lot.title}
+                        loading="lazy"
+                        className="w-full h-64 object-cover"  // ?? was h-44, now taller (16rem)
+                    />
                     <div
                         className={`absolute top-3 left-3 px-2 py-1 rounded-md text-xs font-semibold ${dark ? "bg-neutral-800/90" : "bg-white/90"
                             }`}
                     >
                         {lot.category}
                     </div>
-
                     <div
                         className={`absolute top-3 right-3 px-2 py-1 rounded-md text-xs flex items-center gap-1 ${dark ? "bg-neutral-800/90" : "bg-white/90"
                             }`}
@@ -307,9 +301,18 @@ function Card({ lot, dark }) {
                     </div>
                 </div>
 
-                <div className="p-4 flex-1 flex flex-col">
-                    {/* Quick facts */}
-                    <div className="mt-2 flex flex-wrap gap-2">
+                {/* Body */}
+                <div className="p-5 flex-1 flex flex-col">
+                    <h3 className="font-semibold text-lg leading-snug line-clamp-2">{lot.title}</h3>
+                    <p
+                        className={`text-sm mt-1 flex items-center gap-1 ${dark ? "text-neutral-400" : "text-gray-500"
+                            }`}
+                    >
+                        <MapPin size={14} /> {lot.location} {" \u00B7 "} {lot.seller}
+                    </p>
+
+                    {/* Quick facts row */}
+                    <div className="mt-3 flex flex-wrap gap-2">
                         <FactPill label="Year" value={lot.year} dark={dark} />
                         <FactPill label="Hours" value={lot.hours?.toLocaleString?.()} dark={dark} />
                         <FactPill label="Weight" value={lot.specs?.weight} dark={dark} />
@@ -317,42 +320,25 @@ function Card({ lot, dark }) {
                         <FactPill label="Cond." value={lot.condition} dark={dark} />
                     </div>
 
-                    <h3 className="font-semibold text-base leading-snug line-clamp-2">
-                        {lot.title}
-                    </h3>
-
-                    {/* NOTE: use a safe middle dot */}
-                    <p
-                        className={`text-sm mt-1 flex items-center gap-1 ${dark ? "text-neutral-400" : "text-gray-500"
-                            }`}
-                    >
-                        <MapPin size={14} /> {lot.location} {" \u00B7 "} {lot.seller}
-
-                    </p>
-
-                    <div className="mt-3 grid grid-cols-2 gap-3">
+                    {/* Bids */}
+                    <div className="mt-4 grid grid-cols-2 gap-3">
                         <div
                             className={`rounded-xl border p-3 ${dark ? "bg-neutral-800 border-neutral-700" : "bg-gray-50"
                                 }`}
                         >
-                            <div className={dark ? "text-xs text-neutral-400" : "text-xs text-gray-500"}>
+                            <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>
                                 Current bid
                             </div>
-                            <div className="text-lg font-bold">
-                                {formatCurrency(lot.currentBid)}
-                            </div>
+                            <div className="text-xl font-bold">{formatCurrency(lot.currentBid)}</div>
                         </div>
-
                         <div
                             className={`rounded-xl border p-3 text-right ${dark ? "bg-neutral-800 border-neutral-700" : "bg-gray-50"
                                 }`}
                         >
-                            <div className={dark ? "text-xs text-neutral-400" : "text-xs text-gray-500"}>
+                            <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>
                                 Buy now
                             </div>
-                            <div className="text-lg font-semibold">
-                                {formatCurrency(lot.buyNow)}
-                            </div>
+                            <div className="text-xl font-semibold">{formatCurrency(lot.buyNow)}</div>
                         </div>
                     </div>
                 </div>
@@ -360,6 +346,7 @@ function Card({ lot, dark }) {
         </Link>
     );
 }
+
 
 
 // ---- Pages ----
