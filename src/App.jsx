@@ -654,6 +654,15 @@ function buildSpecRows(lot) {
     // Filter out empty values
     return rows.filter(([, v]) => v != null && v !== "");
 }
+function SpecTile({ label, value, dark }) {
+    if (!value) return null;
+    return (
+        <div className={`rounded-xl border p-4 ${dark ? "bg-neutral-900/60 border-neutral-800" : "bg-white border-gray-200"}`}>
+            <div className={`text-[11px] uppercase tracking-wide ${dark ? "text-neutral-400" : "text-gray-500"}`}>{label}</div>
+            <div className="mt-1 text-sm font-medium break-words">{value}</div>
+        </div>
+    );
+}
 
 
 // ===== LotDetail (hooks first; bidding + lightbox) =====
@@ -782,69 +791,41 @@ function LotDetail({ lots, setLots, dark }) {
                         <FactPill label="Power" value={lot.specs?.power} dark={dark} />
                         <FactPill label="Weight" value={lot.specs?.weight} dark={dark} />
                     </div>
-                    {/* Specifications & Description */}
-                    <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Specifications panel */}
-                        <div className={`rounded-2xl border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} overflow-hidden`}>
-                            <div className={`px-4 py-3 ${dark ? "border-b border-neutral-800" : "border-b border-gray-200"}`}>
-                                <h3 className="font-semibold">Specifications</h3>
-                            </div>
+                    {/* ? FULL-WIDTH SPECIFICATIONS */}
+                    <div className="mt-6">
+                        <div className={`rounded-2xl border p-6 ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
+                            <h3 className="font-semibold text-lg">Specifications</h3>
 
                             {(() => {
                                 const rows = buildSpecRows(lot);
-                                const mid = Math.ceil(rows.length / 2);
-                                const left = rows.slice(0, mid);
-                                const right = rows.slice(mid);
-
-                                const Label = ({ children }) => (
-                                    <div className={`${dark ? "text-neutral-400" : "text-gray-600"} text-sm`}>
-                                        {children}
-                                    </div>
-                                );
-                                const Value = ({ children }) => (
-                                    <div className="text-sm font-medium break-words">{children}</div>
-                                );
-
-                                const List = ({ items }) => (
-                                    <dl className="grid grid-cols-[150px_1fr] gap-x-4 gap-y-2">
-                                        {items.map(([k, v]) => (
-                                            <React.Fragment key={k}>
-                                                <Label>{k}</Label>
-                                                <Value>{v}</Value>
-                                            </React.Fragment>
-                                        ))}
-                                    </dl>
-                                );
-
                                 return (
-                                    <div className="p-4 grid gap-8 md:grid-cols-2">
-                                        <List items={left} />
-                                        <List items={right} />
+                                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                                        {rows.map(([k, v]) => (
+                                            <SpecTile key={k} label={k} value={v} dark={dark} />
+                                        ))}
                                     </div>
                                 );
                             })()}
                         </div>
+                    </div>
 
-                        
-
-
-                        {/* Description panel */}
-                        <div className={`rounded-2xl border p-4 lg:col-span-2 ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
-                            <h3 className="font-semibold mb-3">Description</h3>
-                            <p className="text-sm leading-relaxed opacity-90">{lot.description}</p>
+                    {/* ? DESCRIPTION BELOW, SIMPLE AND WIDE */}
+                    <div className="mt-6">
+                        <div className={`rounded-2xl border p-6 ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
+                            <h3 className="font-semibold text-lg">Description</h3>
+                            <p className="mt-3 text-sm leading-relaxed opacity-90">{lot.description}</p>
 
                             {lot.documents?.length > 0 && (
                                 <div className="mt-4">
                                     <h4 className="text-sm font-medium mb-2">Documents</h4>
                                     <ul className="list-disc pl-5 text-sm opacity-90">
-                                        {lot.documents.map((d) => (
-                                            <li key={d}>{d}</li>
-                                        ))}
+                                        {lot.documents.map((d) => <li key={d}>{d}</li>)}
                                     </ul>
                                 </div>
                             )}
                         </div>
                     </div>
+
 
 
                     <div className="mt-4 grid grid-cols-2 gap-3">
