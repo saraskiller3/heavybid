@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Link, useParams, useNavigate } from "reac
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { Search, Clock, MapPin, Sun, Moon, ChevronLeft, ChevronRight, X, CheckCircle2 } from "lucide-react";
 
+
 // ---- Mock data (expandable / replace with API later) ----
 const MOCK_LISTINGS = [
     {
@@ -26,7 +27,7 @@ const MOCK_LISTINGS = [
         buyNow: 34000,
         endsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Excavator",
-        seller: "Baltic Machinery OÜ",
+        seller: "Baltic Machinery O\u00DC",
         specs: { weight: "22,000 kg", engine: "Komatsu SAA6D107E-1", power: "123 kW" },
         description: "Well maintained PC210 with full service records. New tracks in 2022. Ready to work.",
         documents: ["Service history", "CE certificate"],
@@ -76,7 +77,7 @@ const MOCK_LISTINGS = [
     },
 ];
 
-function formatCurrency(num) { return new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(num); }
+function formatCurrency(n) { return new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(n); }
 function msLeft(iso) { return new Date(iso) - new Date(); }
 function pad2(n) {
     const s = Math.floor(Math.max(0, n)).toString();
@@ -104,7 +105,7 @@ function Header({ query, setQuery, dark, setDark }) {
                 <Link to="/" className={`w-10 h-10 rounded-2xl grid place-items-center font-extrabold ${dark ? "bg-blue-500 text-white" : "bg-blue-600 text-white"}`}>HB</Link>
                 <div className="mr-auto">
                     <div className="text-xl font-extrabold leading-5">HeavyBid</div>
-                    <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>Heavy machinery auctions · EU</div>
+                    <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>Heavy machinery auctions  EU</div>
                 </div>
 
                 <div className="hidden md:flex items-center gap-2 flex-1 max-w-xl mx-6">
@@ -283,7 +284,7 @@ function Home({ lots, query, setQuery, category, setCategory, sortBy, setSortBy,
                 <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-2xl font-semibold">Live auctions</h2>
                     <p className={`text-xs mt-1 ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                        Bidding rules: minimum €250; bids increase in €50 steps. Your bid must be higher than the current bid.
+                        Bidding rules: minimum {"\u20AC"}250; bids increase in {"\u20AC"}50 steps. Your bid must be higher than the current bid.
                     </p>
 
                     <span className={`text-sm ${dark ? "text-neutral-400" : "text-gray-600"}`}>{filtered.length} results</span>
@@ -498,9 +499,9 @@ function LotDetail({ lots, setLots, dark }) {
     useEffect(() => {
         if (!lot) return;
         if (Number.isNaN(bid)) { setError("Enter a number."); return; }
-        if (bid < MIN_BID) { setError(`Minimum bid is €${MIN_BID}.`); return; }
-        if (!isStepAmount(bid)) { setError(`Bids must be in €${STEP} steps (e.g. 250, 300, 350).`); return; }
-        if (bid <= lot.currentBid) { setError(`Your bid must be higher than the current bid.`); return; }
+        if (bid < MIN_BID) { setError(`Minimum bid is \u20AC${MIN_BID}.`); return; }
+        if (!isStepAmount(bid)) { setError(`Bids must be in \u20AC${STEP} steps (e.g. 250, 300, 350).`); return; }
+        if (bid <= lot.currentBid) { setError(`Your bid must be higher than the current bid (\u20AC${lot.currentBid}).`); return; }
         setError("");
     }, [bid, lot]);
 
@@ -510,7 +511,7 @@ function LotDetail({ lots, setLots, dark }) {
         setLots((prev) =>
             prev.map((l) => (l.id === lot.id ? { ...l, currentBid: bid } : l))
         );
-        alert(`Bid placed: €${bid.toLocaleString()}`);
+        alert(`Bid placed: \u20AC${bid.toLocaleString()}`);
     }
     function nudge(delta) {
         const next = Math.max(MIN_BID, bid + delta * STEP);
@@ -622,8 +623,9 @@ function LotDetail({ lots, setLots, dark }) {
                         </div>
 
                         <p className={`mt-2 text-xs ${error ? "text-red-600" : dark ? "text-neutral-400" : "text-gray-500"}`}>
-                            Minimum bid is €{MIN_BID}. Bids increase in €{STEP} steps (e.g. 250, 300, 350…). Your bid must be higher than the current bid.
+                            Minimum bid is {"\u20AC"}{MIN_BID}. Bids increase in {"\u20AC"}{STEP} steps (e.g. 250, 300, 350). Your bid must be higher than the current bid.
                         </p>
+
                         {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
 
                         <div className="mt-3 flex gap-2">
@@ -686,7 +688,7 @@ export default function App() {
                 </Routes>
                 <footer className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} border-t mt-8`}>
                     <div className="max-w-7xl mx-auto px-4 py-6 text-sm flex flex-col sm:flex-row gap-2 sm:justify-between">
-                        <div>© {new Date().getFullYear()} HeavyBid — Heavy machinery auctions</div>
+                        <div>© {new Date().getFullYear()} HeavyBid - Heavy machinery auctions</div>
                         <div>Contact: info@heavybid.example</div>
                     </div>
                 </footer>
