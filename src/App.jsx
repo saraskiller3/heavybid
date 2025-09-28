@@ -1224,7 +1224,7 @@ function SignIn({ dark }) {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 autoComplete="current-password"
-                                placeholder="••••••••"
+                                placeholder="******"
                                 className={`w-full border rounded-xl pl-9 pr-10 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white placeholder-neutral-400" : ""}`}
                             />
                             <Lock size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"}`} />
@@ -1264,7 +1264,7 @@ function SignIn({ dark }) {
                 </form>
 
                 <div className={`mt-6 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                    Don’t have an account? <span className="underline cursor-pointer" onClick={() => alert("TODO: Sign up page")}>Sign up</span>
+                    Don't have an account? <span className="underline cursor-pointer" onClick={() => alert("TODO: Sign up page")}>Sign up</span>
                 </div>
             </div>
         </div>
