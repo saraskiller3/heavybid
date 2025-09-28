@@ -177,20 +177,27 @@ function Header({ query, setQuery, dark, setDark }) {
 }
 
 function Filters({
+    // interdependent dropdowns
     categories, category, setCategory,
+    countries, country, setCountry,
+    categoryCounts,      // Map<string, number> (conditioned by country)
+    countryCounts,       // Map<string, number> (conditioned by category)
+
+    // search/sort/price
     sortBy, setSortBy,
     query, setQuery,
-    dark,
     priceSteps, priceMin, priceMax, setPriceMin, setPriceMax,
-    categoryCounts,
-    countries, country, setCountry,
-    countryCounts
+
+    // theme
+    dark,
 }) {
     return (
-        <Motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} rounded-2xl shadow-sm border p-4 sticky top-20`}>
-
-            {/* Country */}
+        <Motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} rounded-2xl shadow-sm border p-4 sticky top-20`}
+        >
+            {/* Country (narrows by selected Category) */}
             <div>
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Country</label>
                 <select
@@ -198,16 +205,18 @@ function Filters({
                     onChange={(e) => setCountry(e.target.value)}
                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                 >
-                    {(["All", ...countries.filter(c => c !== "All")]).map((c) => {
-                        const count = c === "All"
-                            ? Array.from(countryCounts.values()).reduce((a, b) => a + b, 0)
-                            : (countryCounts.get(c) || 0);
-                        return <option key={c} value={c}>{c} ({count})</option>;
-                    })}
+                    <option value="All">
+                        All ({Array.from(countryCounts.values()).reduce((a, b) => a + b, 0)})
+                    </option>
+                    {countries.filter((c) => c !== "All").map((c) => (
+                        <option key={c} value={c}>
+                            {c} ({countryCounts.get(c) || 0})
+                        </option>
+                    ))}
                 </select>
             </div>
 
-            {/* Category */}
+            {/* Category (narrows by selected Country) */}
             <div className="mt-4">
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Category</label>
                 <select
@@ -215,12 +224,14 @@ function Filters({
                     onChange={(e) => setCategory(e.target.value)}
                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                 >
-                    {categories.map((c) => {
-                        const count = c === "All"
-                            ? Array.from(categoryCounts.values()).reduce((a, b) => a + b, 0)
-                            : (categoryCounts.get(c) || 0);
-                        return <option key={c} value={c}>{c} ({count})</option>;
-                    })}
+                    <option value="All">
+                        All ({Array.from(categoryCounts.values()).reduce((a, b) => a + b, 0)})
+                    </option>
+                    {categories.filter((c) => c !== "All").map((c) => (
+                        <option key={c} value={c}>
+                            {c} ({categoryCounts.get(c) || 0})
+                        </option>
+                    ))}
                 </select>
             </div>
 
@@ -246,9 +257,13 @@ function Filters({
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder="Komatsu, Riga, seller..."
-                        className={`mt-1 w-full border rounded-xl pl-9 pr-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white placeholder-neutral-400" : ""}`}
+                        className={`mt-1 w-full border rounded-xl pl-9 pr-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white placeholder-neutral-400" : ""
+                            }`}
                     />
-                    <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"}`} />
+                    <Search
+                        size={16}
+                        className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"}`}
+                    />
                 </div>
             </div>
 
@@ -256,6 +271,7 @@ function Filters({
             <div className="mt-4">
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Price range (current bid)</label>
                 <div className="mt-1 grid grid-cols-2 gap-2">
+                    {/* Min */}
                     <select
                         value={priceMin}
                         onChange={(e) => {
@@ -266,10 +282,13 @@ function Filters({
                         className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                     >
                         {priceSteps.map((v) => (
-                            <option key={`min-${v}`} value={v}>{"\u20AC"}{v.toLocaleString()}</option>
+                            <option key={`min-${v}`} value={v}>
+                                {"\u20AC"}{v.toLocaleString()}
+                            </option>
                         ))}
                     </select>
 
+                    {/* Max */}
                     <select
                         value={priceMax}
                         onChange={(e) => {
@@ -280,7 +299,9 @@ function Filters({
                         className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                     >
                         {priceSteps.filter((v) => v >= priceMin).map((v) => (
-                            <option key={`max-${v}`} value={v}>{"\u20AC"}{v.toLocaleString()}</option>
+                            <option key={`max-${v}`} value={v}>
+                                {"\u20AC"}{v.toLocaleString()}
+                            </option>
                         ))}
                     </select>
                 </div>
@@ -288,6 +309,8 @@ function Filters({
         </Motion.div>
     );
 }
+
+
 
 
 
@@ -402,7 +425,7 @@ function Home({
     const [_tick, setTick] = useState(0);
     useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 1000); return () => clearInterval(t); }, []);
 
-    // Text + price base filter
+    // Base set: only text + price filters (no country/category yet)
     const baseFiltered = useMemo(() => {
         let out = lots.filter((l) =>
             `${l.title} ${l.location} ${l.seller}`.toLowerCase().includes(query.toLowerCase())
@@ -411,36 +434,57 @@ function Home({
         return out;
     }, [lots, query, priceMin, priceMax]);
 
-    // Country counts + list
-    const countryCounts = useMemo(() => {
+    // === Conditioned counts ===
+    // Countries view: if a category is chosen, count only items in that category
+    const countryCountsView = useMemo(() => {
         const m = new Map();
-        for (const l of baseFiltered) {
+        const src = category === "All" ? baseFiltered : baseFiltered.filter(l => l.category === category);
+        for (const l of src) {
             const c = getCountry(l.location);
             m.set(c, (m.get(c) || 0) + 1);
         }
         return m;
-    }, [baseFiltered]);
+    }, [baseFiltered, category]);
 
-    const countries = useMemo(() => {
-        const arr = Array.from(countryCounts.keys()).sort((a, b) => a.localeCompare(b));
-        return ["All", ...arr];
-    }, [countryCounts]);
-
-    // Category counts + list
-    const categoryCounts = useMemo(() => {
+    // Categories view: if a country is chosen, count only items in that country
+    const categoryCountsView = useMemo(() => {
         const m = new Map();
-        for (const l of baseFiltered) {
+        const src = country === "All" ? baseFiltered : baseFiltered.filter(l => getCountry(l.location) === country);
+        for (const l of src) {
             m.set(l.category, (m.get(l.category) || 0) + 1);
         }
         return m;
-    }, [baseFiltered]);
+    }, [baseFiltered, country]);
+
+    // Build dropdown option arrays from the conditioned views
+    const countries = useMemo(() => {
+        const arr = Array.from(countryCountsView.keys()).sort((a, b) => a.localeCompare(b));
+        return ["All", ...arr];
+    }, [countryCountsView]);
 
     const categories = useMemo(() => {
-        const arr = Array.from(categoryCounts.keys()).sort((a, b) => a.localeCompare(b));
+        const arr = Array.from(categoryCountsView.keys()).sort((a, b) => a.localeCompare(b));
         return ["All", ...arr];
-    }, [categoryCounts]);
+    }, [categoryCountsView]);
 
-    // Apply country + category + sort
+    // Auto-fix an invalid selection when the other dropdown changes
+    useEffect(() => {
+        if (country !== "All" && !countryCountsView.has(country)) {
+            const first = Array.from(countryCountsView.keys())[0];
+            setCountry(first ? first : "All");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [category, countryCountsView]);
+
+    useEffect(() => {
+        if (category !== "All" && !categoryCountsView.has(category)) {
+            const first = Array.from(categoryCountsView.keys())[0];
+            setCategory(first ? first : "All");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [country, categoryCountsView]);
+
+    // Final list applies BOTH filters + sort
     const filtered = useMemo(() => {
         let out = baseFiltered;
         if (country !== "All") out = out.filter((l) => getCountry(l.location) === country);
@@ -452,6 +496,7 @@ function Home({
         return out;
     }, [baseFiltered, country, category, sortBy]);
 
+
     return (
         <main className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-4 gap-6">
             <aside className="md:col-span-1">
@@ -462,12 +507,14 @@ function Home({
                     priceMax={priceMax}
                     setPriceMin={setPriceMin}
                     setPriceMax={setPriceMax}
-                    categoryCounts={categoryCounts}
+                    // conditioned maps + option arrays
+                    categoryCounts={categoryCountsView}
                     countries={countries}
                     country={country}
                     setCountry={setCountry}
-                    countryCounts={countryCounts}
+                    countryCounts={countryCountsView}
                 />
+
             </aside>
 
             <section className="md:col-span-3">
