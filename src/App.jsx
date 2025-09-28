@@ -639,6 +639,36 @@ function prettyLabel(key) {
         .replace(/^./, (c) => c.toUpperCase());
 }
 
+// Build ordered rows for the specs table
+function buildSpecRows(lot) {
+    const rows = [];
+
+    // Preferred order for key fields
+    rows.push(["Category", lot.category]);
+    rows.push(["Year", lot.year]);
+    rows.push(["Hours", lot.hours != null ? lot.hours.toLocaleString() : null]);
+    rows.push(["Condition", lot.condition]);
+    rows.push(["Seller", lot.seller]);
+
+    // Common technical fields (shown next if present)
+    if (lot.specs) {
+        const order = ["engine", "power", "weight"];
+        order.forEach((k) => lot.specs[k] && rows.push([prettyLabel(k), lot.specs[k]]));
+
+        // Any remaining spec keys (skip ones already added)
+        const skipped = new Set(order);
+        Object.entries(lot.specs).forEach(([k, v]) => {
+            if (!skipped.has(k) && v != null && v !== "") {
+                rows.push([prettyLabel(k), v]);
+            }
+        });
+    }
+
+    // Filter out empty values
+    return rows.filter(([, v]) => v != null && v !== "");
+}
+
+
 // ===== LotDetail (hooks first; bidding + lightbox) =====
 function LotDetail({ lots, setLots, dark }) {
     const { id } = useParams();
@@ -768,23 +798,25 @@ function LotDetail({ lots, setLots, dark }) {
                     {/* Specifications & Description */}
                     <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Specifications panel */}
-                        <div className={`rounded-2xl border p-4 ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
-                            <h3 className="font-semibold mb-3">Specifications</h3>
-
-                            {/* Primary specs as neat cards */}
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                                <SpecCard label="Year" value={lot.year} dark={dark} />
-                                <SpecCard label="Hours" value={lot.hours?.toLocaleString?.()} dark={dark} />
-                                <SpecCard label="Condition" value={lot.condition} dark={dark} />
-                                <SpecCard label="Category" value={lot.category} dark={dark} />
-                                <SpecCard label="Seller" value={lot.seller} dark={dark} />
-
-                                {/* Map any remaining key/value pairs from lot.specs */}
-                                {Object.entries(lot.specs || {}).map(([k, v]) => (
-                                    <SpecCard key={k} label={prettyLabel(k)} value={v} dark={dark} />
-                                ))}
+                        <div className={`rounded-2xl border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} overflow-hidden`}>
+                            <div className="px-4 py-3 border-b ${dark ? 'border-neutral-800' : 'border-gray-200'}">
+                                <h3 className="font-semibold">Specifications</h3>
                             </div>
+
+                            <table className="w-full text-sm">
+                                <tbody>
+                                    {buildSpecRows(lot).map(([label, value]) => (
+                                        <tr key={label} className={dark ? "odd:bg-neutral-900 even:bg-neutral-950/40" : "odd:bg-white even:bg-gray-50/60"}>
+                                            <td className={`w-40 sm:w-48 px-4 py-3 align-top ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                                                {label}
+                                            </td>
+                                            <td className="px-4 py-3 font-medium">{value}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
+                        
 
 
                         {/* Description panel */}
