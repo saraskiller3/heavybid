@@ -105,7 +105,7 @@ function Header({ query, setQuery, dark, setDark }) {
                 <Link to="/" className={`w-10 h-10 rounded-2xl grid place-items-center font-extrabold ${dark ? "bg-blue-500 text-white" : "bg-blue-600 text-white"}`}>HB</Link>
                 <div className="mr-auto">
                     <div className="text-xl font-extrabold leading-5">HeavyBid</div>
-                    <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>Heavy machinery auctions  EU</div>
+                    <div className="text-xs ...">Heavy machinery auctions {"\u00B7"} EU</div>
                 </div>
 
                 <div className="hidden md:flex items-center gap-2 flex-1 max-w-xl mx-6">
@@ -113,7 +113,7 @@ function Header({ query, setQuery, dark, setDark }) {
                         <input
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
-                            placeholder="Search model, location, seller…"
+                            placeholder={"Search model, location, seller\u2026"}
                             className={`w-full border ${dark ? "border-neutral-700 bg-neutral-800 text-white placeholder-neutral-400" : "border-gray-200"} focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none rounded-xl pl-9 pr-3 py-2 text-sm`}
                         />
                         <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"}`} />
@@ -156,7 +156,7 @@ function Filters({ categories, category, setCategory, sortBy, setSortBy, query, 
             <div className="mt-4">
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Quick search</label>
                 <div className="relative">
-                    <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Komatsu, Riga, seller…"
+                    <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={"Komatsu, Riga, seller\u2026"}
                         className={`mt-1 w-full border rounded-xl pl-9 pr-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white placeholder-neutral-400" : ""}`} />
                     <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"}`} />
                 </div>
@@ -224,7 +224,8 @@ function Card({ lot, dark }) {
                         className={`text-sm mt-1 flex items-center gap-1 ${dark ? "text-neutral-400" : "text-gray-500"
                             }`}
                     >
-                        <MapPin size={14} /> {lot.location} {" · "} {lot.seller}
+                        <MapPin size={14} /> {lot.location} {" \u00B7 "} {lot.seller}
+
                     </p>
 
                     <div className="mt-3 grid grid-cols-2 gap-3">
@@ -585,7 +586,8 @@ function LotDetail({ lots, setLots, dark }) {
                 <div className={`rounded-2xl border p-4 h-max ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
                     <h1 className="text-2xl font-semibold leading-tight">{lot.title}</h1>
                     <p className={`mt-1 text-sm flex items-center gap-1 ${dark ? "text-neutral-400" : "text-gray-500"}`}>
-                        <MapPin size={14} /> {lot.location}
+                        <MapPin size={14} /> {lot.location} {" \u00B7 "} {lot.seller}
+
                     </p>
 
                     <div className="mt-4 grid grid-cols-2 gap-3">
@@ -688,7 +690,10 @@ export default function App() {
                 </Routes>
                 <footer className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} border-t mt-8`}>
                     <div className="max-w-7xl mx-auto px-4 py-6 text-sm flex flex-col sm:flex-row gap-2 sm:justify-between">
-                        <div>© {new Date().getFullYear()} HeavyBid - Heavy machinery auctions</div>
+                        <div>
+                            {"\u00A9"} {new Date().getFullYear()} {" "} HeavyBid {" \u2014 "} Heavy machinery auctions
+                        </div>
+
                         <div>Contact: info@heavybid.example</div>
                     </div>
                 </footer>
