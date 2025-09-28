@@ -619,6 +619,25 @@ function nextValidStep(value) {
     const rem = value % STEP;
     return rem === 0 ? value : value + (STEP - rem);
 }
+function SpecCard({ label, value, dark }) {
+    if (!value) return null;
+    return (
+        <div className={`rounded-xl border p-3 ${dark ? "bg-neutral-900/60 border-neutral-800" : "bg-white border-gray-200"} shadow-sm`}>
+            <div className={`text-[11px] uppercase tracking-wide ${dark ? "text-neutral-400" : "text-gray-500"}`}>
+                {label}
+            </div>
+            <div className="mt-1 text-sm font-medium">{value}</div>
+        </div>
+    );
+}
+
+// Turn spec keys like "enginePower" or "power" into nice labels
+function prettyLabel(key) {
+    return key
+        .replace(/[_-]+/g, " ")
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replace(/^./, (c) => c.toUpperCase());
+}
 
 // ===== LotDetail (hooks first; bidding + lightbox) =====
 function LotDetail({ lots, setLots, dark }) {
@@ -751,26 +770,22 @@ function LotDetail({ lots, setLots, dark }) {
                         {/* Specifications panel */}
                         <div className={`rounded-2xl border p-4 ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
                             <h3 className="font-semibold mb-3">Specifications</h3>
-                            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                                {/* fixed, prominent facts */}
-                                <dt className="text-gray-500 dark:text-neutral-400">Year</dt>
-                                <dd>{lot.year}</dd>
 
-                                <dt className="text-gray-500 dark:text-neutral-400">Hours</dt>
-                                <dd>{lot.hours?.toLocaleString?.()}</dd>
+                            {/* Primary specs as neat cards */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                <SpecCard label="Year" value={lot.year} dark={dark} />
+                                <SpecCard label="Hours" value={lot.hours?.toLocaleString?.()} dark={dark} />
+                                <SpecCard label="Condition" value={lot.condition} dark={dark} />
+                                <SpecCard label="Category" value={lot.category} dark={dark} />
+                                <SpecCard label="Seller" value={lot.seller} dark={dark} />
 
-                                <dt className="text-gray-500 dark:text-neutral-400">Condition</dt>
-                                <dd>{lot.condition}</dd>
-
-                                {/* auto-fill the rest from lot.specs */}
+                                {/* Map any remaining key/value pairs from lot.specs */}
                                 {Object.entries(lot.specs || {}).map(([k, v]) => (
-                                    <React.Fragment key={k}>
-                                        <dt className="text-gray-500 dark:text-neutral-400 capitalize">{k}</dt>
-                                        <dd>{v}</dd>
-                                    </React.Fragment>
+                                    <SpecCard key={k} label={prettyLabel(k)} value={v} dark={dark} />
                                 ))}
-                            </dl>
+                            </div>
                         </div>
+
 
                         {/* Description panel */}
                         <div className={`rounded-2xl border p-4 lg:col-span-2 ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
