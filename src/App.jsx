@@ -14,6 +14,7 @@ const MOCK_LISTINGS = [
         id: "EX2001",
         title: "2014 Komatsu PC210-8 Excavator",
         location: "Riga, Latvia",
+        coords: { lat: 56.9496, lng: 24.1052 },
         images: [
             "/images/komatsu/img1.jpg",
             "/images/komatsu/img2.jpg",
@@ -37,6 +38,7 @@ const MOCK_LISTINGS = [
         id: "WL453",
         title: "2018 Volvo L120 Wheel Loader",
         location: "Vilnius, Lithuania",
+        coords: { lat: 54.6872, lng: 25.2797 },
         images: [
             "/images/volvo/img1.jpg",
             "/images/volvo/img2.jpg",
@@ -60,6 +62,7 @@ const MOCK_LISTINGS = [
         id: "CR300",
         title: "2016 Caterpillar D6 Bulldozer",
         location: "Tallinn, Estonia",
+        coords: { lat: 59.4370, lng: 24.7536 },
         images: [
             "/images/catd6/img1.jpg",
             "/images/catd6/img2.webp",
@@ -82,6 +85,7 @@ const MOCK_LISTINGS = [
         id: "TR555",
         title: "Hadrian X bricklayer",
         location: "Berlin, Germany",
+        coords: { lat: 52.5200, lng: 13.4050 }, 
         images: [
             "/images/hadrianx/img1.png",
             "/images/hadrianx/img2.jpg",
@@ -866,6 +870,43 @@ function SpecTile({ label, value, dark }) {
     );
 }
 
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+
+function LotMap({ lot, dark }) {
+    const pos = lot?.coords ? [lot.coords.lat, lot.coords.lng] : null;
+    if (!pos) return null;
+
+    return (
+        <div className={`rounded-2xl border overflow-hidden ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white border-gray-200"}`}>
+            <div className={`px-4 py-3 ${dark ? "border-b border-neutral-800" : "border-b border-gray-200"}`}>
+                <h3 className="font-semibold">Location</h3>
+            </div>
+            <div className="h-72">
+                <MapContainer
+                    center={pos}
+                    zoom={10}
+                    scrollWheelZoom={false}
+                    className="h-full w-full"
+                    preferCanvas
+                >
+                    <TileLayer
+                        attribution='&copy; OpenStreetMap contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={pos}>
+                        <Popup>
+                            <div className="text-sm">
+                                <div className="font-medium">{lot.title}</div>
+                                <div className="opacity-80">{lot.location}</div>
+                                <div className="opacity-80">Seller: {lot.seller}</div>
+                            </div>
+                        </Popup>
+                    </Marker>
+                </MapContainer>
+            </div>
+        </div>
+    );
+}
 
 // ===== LotDetail (hooks first; bidding + lightbox) =====
 function LotDetail({ lots, setLots, dark }) {
@@ -989,7 +1030,11 @@ function LotDetail({ lots, setLots, dark }) {
                                }`}>
                                  {lot.hasDefects ? "With defects" : "Without defects"}
                               </span>
-                         </div>
+                    </div>
+                    <div className="mt-6">
+                        <LotMap lot={lot} dark={dark} />
+                    </div>
+
                     {/* Key facts */}
                     <div className="mt-3 flex flex-wrap gap-2">
                         <FactPill label="Category" value={lot.category} dark={dark} />
