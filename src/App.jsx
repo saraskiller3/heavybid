@@ -786,23 +786,45 @@ function LotDetail({ lots, setLots, dark }) {
                     <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Specifications panel */}
                         <div className={`rounded-2xl border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} overflow-hidden`}>
-                            <div className="px-4 py-3 border-b ${dark ? 'border-neutral-800' : 'border-gray-200'}">
+                            <div className={`px-4 py-3 ${dark ? "border-b border-neutral-800" : "border-b border-gray-200"}`}>
                                 <h3 className="font-semibold">Specifications</h3>
                             </div>
 
-                            <table className="w-full text-sm">
-                                <tbody>
-                                    {buildSpecRows(lot).map(([label, value]) => (
-                                        <tr key={label} className={dark ? "odd:bg-neutral-900 even:bg-neutral-950/40" : "odd:bg-white even:bg-gray-50/60"}>
-                                            <td className={`w-40 sm:w-48 px-4 py-3 align-top ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                                                {label}
-                                            </td>
-                                            <td className="px-4 py-3 font-medium">{value}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                            {(() => {
+                                const rows = buildSpecRows(lot);
+                                const mid = Math.ceil(rows.length / 2);
+                                const left = rows.slice(0, mid);
+                                const right = rows.slice(mid);
+
+                                const Label = ({ children }) => (
+                                    <div className={`${dark ? "text-neutral-400" : "text-gray-600"} text-sm`}>
+                                        {children}
+                                    </div>
+                                );
+                                const Value = ({ children }) => (
+                                    <div className="text-sm font-medium break-words">{children}</div>
+                                );
+
+                                const List = ({ items }) => (
+                                    <dl className="grid grid-cols-[150px_1fr] gap-x-4 gap-y-2">
+                                        {items.map(([k, v]) => (
+                                            <React.Fragment key={k}>
+                                                <Label>{k}</Label>
+                                                <Value>{v}</Value>
+                                            </React.Fragment>
+                                        ))}
+                                    </dl>
+                                );
+
+                                return (
+                                    <div className="p-4 grid gap-8 md:grid-cols-2">
+                                        <List items={left} />
+                                        <List items={right} />
+                                    </div>
+                                );
+                            })()}
                         </div>
+
                         
 
 
