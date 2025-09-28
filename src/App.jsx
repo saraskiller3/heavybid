@@ -122,6 +122,10 @@ function pad2(n) {
     const s = Math.floor(Math.max(0, n)).toString();
     return s.length === 1 ? "0" + s : s;
 }
+function getCountry(location = "") {
+    const parts = location.split(",").map(s => s.trim());
+    return parts[parts.length - 1] || "";
+}
 
 function prettyLeft(iso) {
     const diff = new Date(iso) - new Date();
@@ -173,16 +177,38 @@ function Header({ query, setQuery, dark, setDark }) {
 }
 
 function Filters({
-    categories, category, setCategory, sortBy, setSortBy, query, setQuery, dark,
+    categories, category, setCategory,
+    sortBy, setSortBy,
+    query, setQuery,
+    dark,
     priceSteps, priceMin, priceMax, setPriceMin, setPriceMax,
-    categoryCounts   // ?? new
+    categoryCounts,
+    countries, country, setCountry,
+    countryCounts
 }) {
     return (
         <Motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
             className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} rounded-2xl shadow-sm border p-4 sticky top-20`}>
 
-            {/* Category with counts */}
+            {/* Country */}
             <div>
+                <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Country</label>
+                <select
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                >
+                    {(["All", ...countries.filter(c => c !== "All")]).map((c) => {
+                        const count = c === "All"
+                            ? Array.from(countryCounts.values()).reduce((a, b) => a + b, 0)
+                            : (countryCounts.get(c) || 0);
+                        return <option key={c} value={c}>{c} ({count})</option>;
+                    })}
+                </select>
+            </div>
+
+            {/* Category */}
+            <div className="mt-4">
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Category</label>
                 <select
                     value={category}
@@ -193,20 +219,19 @@ function Filters({
                         const count = c === "All"
                             ? Array.from(categoryCounts.values()).reduce((a, b) => a + b, 0)
                             : (categoryCounts.get(c) || 0);
-                        const label = `${c} (${count})`;
-                        return <option key={c} value={c}>{label}</option>;
+                        return <option key={c} value={c}>{c} ({count})</option>;
                     })}
                 </select>
             </div>
 
-            {/* ... keep your Sort, Quick search, and Price range blocks ... */}
-
-
             {/* Sort */}
             <div className="mt-4">
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Sort</label>
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
-                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}>
+                <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                >
                     <option value="endingSoon">Ending soon</option>
                     <option value="priceHigh">Highest bid</option>
                     <option value="priceLow">Lowest bid</option>
@@ -217,8 +242,12 @@ function Filters({
             <div className="mt-4">
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Quick search</label>
                 <div className="relative">
-                    <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Komatsu, Riga, seller..."
-                        className={`mt-1 w-full border rounded-xl pl-9 pr-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white placeholder-neutral-400" : ""}`} />
+                    <input
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Komatsu, Riga, seller..."
+                        className={`mt-1 w-full border rounded-xl pl-9 pr-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white placeholder-neutral-400" : ""}`}
+                    />
                     <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"}`} />
                 </div>
             </div>
@@ -259,6 +288,8 @@ function Filters({
         </Motion.div>
     );
 }
+
+
 
 function ImageWithFallback({ src, alt, className }) {
     const [failed, setFailed] = React.useState(false);
@@ -365,16 +396,13 @@ function Card({ lot, dark }) {
 // ---- Pages ----
 function Home({
     lots, query, setQuery, category, setCategory, sortBy, setSortBy, dark,
+    country, setCountry,
     priceSteps, priceMin, priceMax, setPriceMin, setPriceMax
 }) {
-    // live tick for countdowns
-    const [nowTick, setNowTick] = useState(Date.now());
-    useEffect(() => {
-        const t = setInterval(() => setNowTick(Date.now()), 1000);
-        return () => clearInterval(t);
-    }, []);
+    const [_tick, setTick] = useState(0);
+    useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 1000); return () => clearInterval(t); }, []);
 
-    // 1) Apply text + price filters (NOT category yet)
+    // Text + price base filter
     const baseFiltered = useMemo(() => {
         let out = lots.filter((l) =>
             `${l.title} ${l.location} ${l.seller}`.toLowerCase().includes(query.toLowerCase())
@@ -383,31 +411,46 @@ function Home({
         return out;
     }, [lots, query, priceMin, priceMax]);
 
-    // 2) Category counts from the base set
-    const categoryCounts = useMemo(() => {
-        const map = new Map();
+    // Country counts + list
+    const countryCounts = useMemo(() => {
+        const m = new Map();
         for (const l of baseFiltered) {
-            map.set(l.category, (map.get(l.category) || 0) + 1);
+            const c = getCountry(l.location);
+            m.set(c, (m.get(c) || 0) + 1);
         }
-        return map; // Map<string, number>
+        return m;
     }, [baseFiltered]);
 
-    // 3) Category list (All + sorted)
+    const countries = useMemo(() => {
+        const arr = Array.from(countryCounts.keys()).sort((a, b) => a.localeCompare(b));
+        return ["All", ...arr];
+    }, [countryCounts]);
+
+    // Category counts + list
+    const categoryCounts = useMemo(() => {
+        const m = new Map();
+        for (const l of baseFiltered) {
+            m.set(l.category, (m.get(l.category) || 0) + 1);
+        }
+        return m;
+    }, [baseFiltered]);
+
     const categories = useMemo(() => {
         const arr = Array.from(categoryCounts.keys()).sort((a, b) => a.localeCompare(b));
         return ["All", ...arr];
     }, [categoryCounts]);
 
-    // 4) Apply category + sort to produce final list
+    // Apply country + category + sort
     const filtered = useMemo(() => {
         let out = baseFiltered;
+        if (country !== "All") out = out.filter((l) => getCountry(l.location) === country);
         if (category !== "All") out = out.filter((l) => l.category === category);
 
         if (sortBy === "endingSoon") out = out.slice().sort((a, b) => msLeft(a.endsAt) - msLeft(b.endsAt));
         if (sortBy === "priceHigh") out = out.slice().sort((a, b) => b.currentBid - a.currentBid);
         if (sortBy === "priceLow") out = out.slice().sort((a, b) => a.currentBid - b.currentBid);
         return out;
-    }, [baseFiltered, category, sortBy, nowTick]);
+    }, [baseFiltered, country, category, sortBy]);
 
     return (
         <main className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -419,7 +462,11 @@ function Home({
                     priceMax={priceMax}
                     setPriceMin={setPriceMin}
                     setPriceMax={setPriceMax}
-                    categoryCounts={categoryCounts} // pass counts
+                    categoryCounts={categoryCounts}
+                    countries={countries}
+                    country={country}
+                    setCountry={setCountry}
+                    countryCounts={countryCounts}
                 />
             </aside>
 
@@ -436,37 +483,20 @@ function Home({
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <AnimatePresence>
-                        {filtered.map((l) => (
-                            <Motion.div
-                                key={l.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 10 }}
-                            >
-                                <Card lot={l} dark={dark} />
-                            </Motion.div>
-                        ))}
-                    </AnimatePresence>
+                    <Motion.div initial={{ opacity: 1 }} />
+                    {filtered.map((l) => (
+                        <Motion.div key={l.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                            <Card lot={l} dark={dark} />
+                        </Motion.div>
+                    ))}
                 </div>
 
                 {filtered.length === 0 && (
-                    <Motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className={`mt-8 p-6 rounded-2xl border text-center ${dark
-                                ? "bg-neutral-900 border-neutral-800 text-neutral-300"
-                                : "bg-white text-gray-600"
-                            }`}
-                    >
+                    <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                        className={`mt-8 p-6 rounded-2xl border text-center ${dark ? "bg-neutral-900 border-neutral-800 text-neutral-300" : "bg-white text-gray-600"}`}>
                         No listings match your filters{" "}
                         <button
-                            onClick={() => {
-                                setQuery("");
-                                setCategory("All");
-                                setPriceMin(0);
-                                setPriceMax(priceSteps[priceSteps.length - 1] || 0);
-                            }}
+                            onClick={() => { setQuery(""); setCategory("All"); setCountry("All"); setPriceMin(0); setPriceMax(priceSteps[priceSteps.length - 1] || 0); }}
                             className="underline"
                         >
                             Reset filters
@@ -477,6 +507,7 @@ function Home({
         </main>
     );
 }
+
 
 
 
@@ -947,6 +978,7 @@ export default function App() {
     // Theme/search/sort
     const [query, setQuery] = useState("");
     const [category, setCategory] = useState("All");
+    const [country, setCountry] = useState("All");
     const [sortBy, setSortBy] = useState("endingSoon");
     const [dark, setDark] = useState(false);
 
@@ -983,6 +1015,7 @@ export default function App() {
                         element={
                             <Home
                                 {...{ lots, query, setQuery, category, setCategory, sortBy, setSortBy, dark }}
+                                {...{ country, setCountry }}
                                 priceSteps={priceSteps}
                                 priceMin={priceMin}
                                 priceMax={priceMax}
