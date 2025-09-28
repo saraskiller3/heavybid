@@ -75,7 +75,46 @@ const MOCK_LISTINGS = [
         description: "Strong D6 with ripper and blade; recent hydraulics check.",
         documents: ["CE certificate", "Inspection report"],
     },
+    {
+        id: "TR555",
+        title: "Hadrian X bricklayer",
+        location: "Berlin, Germany",
+        images: [
+            "/images/hadrianx/img1.png",
+            "/images/hadrianx/img2.jpg",
+           "/images/hadrianx/img3.jpg",
+        ],
+        year: 2024,
+        hours: 0,
+        condition: "Brand new",
+        currentBid: 3000000,
+        reserve: false,
+        buyNow: 4000000,
+        endsAt: new Date(Date.now() + 13 * 24 * 60 * 60 * 1000).toISOString(),
+        category: "Miscellaneous",
+        seller: "FBR",
+        specs: { weight: "23,000 kg", engine: "Volvo 555", power: "250 kW" },
+        description: "Brand new, factory warranty, new in Europe",
+        documents: ["CE certificate", "Inspection report", "Customs clearance", "5 year factory warranty"],
+    },
+
 ];
+
+// Build your custom step sequence up to a given max
+function buildPriceSteps(max) {
+    const steps = [0, 150, 300, 500];
+    const pushRange = (start, end, step) => { for (let v = start; v <= end; v += step) steps.push(v); };
+    pushRange(1000, 3000, 500);     // 1000..3000 by 500
+    pushRange(4000, 5000, 1000);    // 4k, 5k
+    pushRange(6000, 15000, 1000);   // 6k..15k by 1k
+    pushRange(17500, 30000, 2500);  // 17.5k..30k by 2.5k
+    pushRange(35000, 50000, 5000);  // 35k..50k by 5k
+    pushRange(60000, 100000, 10000);// 60k..100k by 10k
+    let v = 120000; while (v <= max) { steps.push(v); v += 20000; }
+    if (steps[steps.length - 1] < max) steps.push(max);
+    return Array.from(new Set(steps)).sort((a, b) => a - b);
+}
+
 
 function formatCurrency(n) { return new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(n); }
 function msLeft(iso) { return new Date(iso) - new Date(); }
@@ -133,10 +172,15 @@ function Header({ query, setQuery, dark, setDark }) {
     );
 }
 
-function Filters({ categories, category, setCategory, sortBy, setSortBy, query, setQuery, dark }) {
+function Filters({
+    categories, category, setCategory, sortBy, setSortBy, query, setQuery, dark,
+    priceSteps, priceMin, priceMax, setPriceMin, setPriceMax
+}) {
     return (
         <Motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
             className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} rounded-2xl shadow-sm border p-4 sticky top-20`}>
+
+            {/* Category */}
             <div>
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Category</label>
                 <select value={category} onChange={(e) => setCategory(e.target.value)}
@@ -144,6 +188,8 @@ function Filters({ categories, category, setCategory, sortBy, setSortBy, query, 
                     {categories.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
             </div>
+
+            {/* Sort */}
             <div className="mt-4">
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Sort</label>
                 <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
@@ -153,17 +199,54 @@ function Filters({ categories, category, setCategory, sortBy, setSortBy, query, 
                     <option value="priceLow">Lowest bid</option>
                 </select>
             </div>
+
+            {/* Quick search */}
             <div className="mt-4">
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Quick search</label>
                 <div className="relative">
-                    <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={"Komatsu, Riga, seller\u2026"}
+                    <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Komatsu, Riga, seller..."
                         className={`mt-1 w-full border rounded-xl pl-9 pr-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white placeholder-neutral-400" : ""}`} />
                     <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"}`} />
+                </div>
+            </div>
+
+            {/* Price range */}
+            <div className="mt-4">
+                <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Price range (current bid)</label>
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                    <select
+                        value={priceMin}
+                        onChange={(e) => {
+                            const v = Number(e.target.value);
+                            setPriceMin(v);
+                            if (v > priceMax) setPriceMax(v);
+                        }}
+                        className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                    >
+                        {priceSteps.map((v) => (
+                            <option key={`min-${v}`} value={v}>{"\u20AC"}{v.toLocaleString()}</option>
+                        ))}
+                    </select>
+
+                    <select
+                        value={priceMax}
+                        onChange={(e) => {
+                            const v = Number(e.target.value);
+                            setPriceMax(v);
+                            if (v < priceMin) setPriceMin(v);
+                        }}
+                        className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                    >
+                        {priceSteps.filter((v) => v >= priceMin).map((v) => (
+                            <option key={`max-${v}`} value={v}>{"\u20AC"}{v.toLocaleString()}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
         </Motion.div>
     );
 }
+
 function ImageWithFallback({ src, alt, className }) {
     const [failed, setFailed] = React.useState(false);
     const placeholder = `https://placehold.co/1200x800?text=${encodeURIComponent(alt || 'Heavy machinery')}`;
@@ -261,59 +344,103 @@ function Card({ lot, dark }) {
 
 
 // ---- Pages ----
-function Home({ lots, query, setQuery, category, setCategory, sortBy, setSortBy, dark }) {
+function Home({
+    lots, query, setQuery, category, setCategory, sortBy, setSortBy, dark,
+    priceSteps, priceMin, priceMax, setPriceMin, setPriceMax
+}) {
+
     const categories = useMemo(() => ["All", ...new Set(lots.map((l) => l.category))], [lots]);
+
+    // tick every second so countdowns update live
     const [nowTick, setNowTick] = useState(Date.now());
     useEffect(() => {
-    const t = setInterval(() => setNowTick(Date.now()), 1000);
-    return () => clearInterval(t);
+        const t = setInterval(() => setNowTick(Date.now()), 1000);
+        return () => clearInterval(t);
     }, []);
 
+    // ?? Apply text, category, price, and sort filters
     const filtered = useMemo(() => {
-        let out = lots.filter((l) => `${l.title} ${l.location} ${l.seller}`.toLowerCase().includes(query.toLowerCase()));
+        let out = lots.filter((l) =>
+            `${l.title} ${l.location} ${l.seller}`.toLowerCase().includes(query.toLowerCase())
+        );
         if (category !== "All") out = out.filter((l) => l.category === category);
+
+        // price range filter (current bid)
+        out = out.filter((l) => l.currentBid >= priceMin && l.currentBid <= priceMax);
+
         if (sortBy === "endingSoon") out = out.sort((a, b) => msLeft(a.endsAt) - msLeft(b.endsAt));
         if (sortBy === "priceHigh") out = out.sort((a, b) => b.currentBid - a.currentBid);
         if (sortBy === "priceLow") out = out.sort((a, b) => a.currentBid - b.currentBid);
+
         return out;
-    }, [lots, query, category, sortBy, nowTick]);
+    }, [lots, query, category, sortBy, priceMin, priceMax, nowTick]);
+    // If steps aren't ready yet, show a tiny placeholder (prevents blank screen)
+    if (!priceSteps || !priceSteps.length) {
+        return (
+            <main className="max-w-7xl mx-auto px-4 py-8">
+                <div className={`${dark ? "text-neutral-300" : "text-gray-600"}`}>Loading filters…</div>
+            </main>
+        );
+    }
 
     return (
         <main className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-4 gap-6">
-            <aside className="md:col-span-1"><Filters {...{ categories, category, setCategory, sortBy, setSortBy, query, setQuery, dark }} /></aside>
+            <aside className="md:col-span-1">
+                <Filters
+                    {...{ categories, category, setCategory, sortBy, setSortBy, query, setQuery, dark }}
+                    priceSteps={priceSteps}
+                    priceMin={priceMin}
+                    priceMax={priceMax}
+                    setPriceMin={setPriceMin}
+                    setPriceMax={setPriceMax}
+                />
+            </aside>
+
             <section className="md:col-span-3">
                 <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-2xl font-semibold">Live auctions</h2>
-                    <p className={`text-xs mt-1 ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                        Bidding rules: minimum {"\u20AC"}250; bids increase in {"\u20AC"}50 steps. Your bid must be higher than the current bid.
-                    </p>
-
-                    <span className={`text-sm ${dark ? "text-neutral-400" : "text-gray-600"}`}>{filtered.length} results</span>
+                    <span className={`text-sm ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                        {filtered.length} results
+                    </span>
                 </div>
+
+                <p className={`text-xs -mt-2 mb-4 ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                    Showing bids between {"\u20AC"}{priceMin.toLocaleString()} and {"\u20AC"}{priceMax.toLocaleString()}.
+                </p>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <AnimatePresence>
                         {filtered.map((l) => (
-                            <Motion.div
-                                key={l.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 10 }}
-                            >
+                            <Motion.div key={l.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}>
                                 <Card lot={l} dark={dark} />
                             </Motion.div>
                         ))}
                     </AnimatePresence>
-
                 </div>
+
+
                 {filtered.length === 0 && (
-                    <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`mt-8 p-6 rounded-2xl border text-center ${dark ? "bg-neutral-900 border-neutral-800 text-neutral-300" : "bg-white text-gray-600"}`}>
-                        No listings match your filters. <button onClick={() => { setQuery(""); setCategory("All"); }} className="underline">Reset filters</button>
+                    <Motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className={`mt-8 p-6 rounded-2xl border text-center ${dark ? "bg-neutral-900 border-neutral-800 text-neutral-300" : "bg-white text-gray-600"
+                            }`}
+                    >
+                        No listings match your filters.{" "}
+                        <button
+                            onClick={() => { setQuery(""); setCategory("All"); setPriceMin(0); setPriceMax(priceSteps[priceSteps.length - 1] || 0); }}
+                            className="underline"
+                        >
+                            Reset filters
+                        </button>
                     </Motion.div>
                 )}
             </section>
         </main>
     );
 }
+
+
 // ===== Lightbox (zoom, pan, pinch, nav, blur-up, fallback) =====
 function Lightbox({ images, index, alt, onClose, onPrev, onNext }) {
     const [scale, setScale] = useState(1);
@@ -666,16 +793,35 @@ function LotDetail({ lots, setLots, dark }) {
 
 // ---- App root ----
 export default function App() {
+    // Lots
     const [lots, setLots] = useState(MOCK_LISTINGS);
+
+    // Theme/search/sort
     const [query, setQuery] = useState("");
     const [category, setCategory] = useState("All");
     const [sortBy, setSortBy] = useState("endingSoon");
     const [dark, setDark] = useState(false);
 
+    // Compute max bid and steps (always yields at least [0, max])
+    const maxCurrentBid = useMemo(
+        () => Math.max(0, ...lots.map((l) => l.currentBid)),
+        [lots]
+    );
 
-    // ? Ensure Tailwind dark mode works: add/remove the 'dark' class on <html>
+    const priceSteps = useMemo(() => {
+        const steps = buildPriceSteps(maxCurrentBid);
+        return steps.length ? steps : [0, maxCurrentBid];
+    }, [maxCurrentBid]);
+
+    // ? Initialize AFTER steps exist; update if steps change
+    const [priceMin, setPriceMin] = useState(0);
+    const [priceMax, setPriceMax] = useState(0);
     useEffect(() => {
-        document.documentElement.classList.toggle('dark', dark);
+        if (priceSteps.length) setPriceMax(priceSteps[priceSteps.length - 1]);
+    }, [priceSteps]);
+
+    useEffect(() => {
+        document.documentElement.classList.toggle("dark", dark);
     }, [dark]);
 
 
@@ -684,16 +830,25 @@ export default function App() {
             <BrowserRouter>
                 <Header {...{ query, setQuery, dark, setDark }} />
                 <Routes>
-                    <Route path="/" element={<Home {...{ lots, query, setQuery, category, setCategory, sortBy, setSortBy, dark }} />} />
+                    <Route
+                        path="/"
+                        element={
+                            <Home
+                                {...{ lots, query, setQuery, category, setCategory, sortBy, setSortBy, dark }}
+                                priceSteps={priceSteps}
+                                priceMin={priceMin}
+                                priceMax={priceMax}
+                                setPriceMin={setPriceMin}
+                                setPriceMax={setPriceMax}
+                            />
+                        }
+                    />
                     <Route path="/lot/:id" element={<LotDetail lots={lots} setLots={setLots} dark={dark} />} />
                     <Route path="*" element={<div className="max-w-5xl mx-auto px-4 py-12">Not found</div>} />
                 </Routes>
                 <footer className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} border-t mt-8`}>
                     <div className="max-w-7xl mx-auto px-4 py-6 text-sm flex flex-col sm:flex-row gap-2 sm:justify-between">
-                        <div>
-                            {"\u00A9"} {new Date().getFullYear()} {" "} HeavyBid {" \u2014 "} Heavy machinery auctions
-                        </div>
-
+                        <div>{"\u00A9"} {new Date().getFullYear()} {" "} HeavyBid {" \u2014 "} Heavy machinery auctions</div>
                         <div>Contact: info@heavybid.example</div>
                     </div>
                 </footer>
