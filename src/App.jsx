@@ -791,23 +791,27 @@ function LotDetail({ lots, setLots, dark }) {
                         <FactPill label="Power" value={lot.specs?.power} dark={dark} />
                         <FactPill label="Weight" value={lot.specs?.weight} dark={dark} />
                     </div>
-                    {/* ? FULL-WIDTH SPECIFICATIONS */}
-                    <div className="mt-6">
-                        <div className={`rounded-2xl border p-6 ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
-                            <h3 className="font-semibold text-lg">Specifications</h3>
-
-                            {(() => {
-                                const rows = buildSpecRows(lot);
-                                return (
-                                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                                        {rows.map(([k, v]) => (
-                                            <SpecTile key={k} label={k} value={v} dark={dark} />
-                                        ))}
-                                    </div>
-                                );
-                            })()}
+                    {/* ? FULL-WIDTH SPECIFICATIONS — SINGLE LIST */}
+                    <div className={`rounded-2xl border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} overflow-hidden`}>
+                        <div className={`px-4 py-3 ${dark ? "border-b border-neutral-800" : "border-b border-gray-200"}`}>
+                            <h3 className="font-semibold">Specifications</h3>
                         </div>
+
+                        <dl className={`divide-y ${dark ? "divide-neutral-800" : "divide-gray-200"}`}>
+                            {buildSpecRows(lot).map(([label, value]) => (
+                                <div
+                                    key={label}
+                                    className="px-4 py-3 sm:grid sm:grid-cols-[180px_1fr] sm:gap-6"
+                                >
+                                    <dt className={`${dark ? "text-neutral-400" : "text-gray-600"} text-sm mb-1 sm:mb-0`}>
+                                        {label}
+                                    </dt>
+                                    <dd className="text-sm font-medium break-words">{value}</dd>
+                                </div>
+                            ))}
+                        </dl>
                     </div>
+
 
                     {/* ? DESCRIPTION BELOW, SIMPLE AND WIDE */}
                     <div className="mt-6">
