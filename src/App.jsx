@@ -174,20 +174,33 @@ function Header({ query, setQuery, dark, setDark }) {
 
 function Filters({
     categories, category, setCategory, sortBy, setSortBy, query, setQuery, dark,
-    priceSteps, priceMin, priceMax, setPriceMin, setPriceMax
+    priceSteps, priceMin, priceMax, setPriceMin, setPriceMax,
+    categoryCounts   // ?? new
 }) {
     return (
         <Motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
             className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} rounded-2xl shadow-sm border p-4 sticky top-20`}>
 
-            {/* Category */}
+            {/* Category with counts */}
             <div>
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Category</label>
-                <select value={category} onChange={(e) => setCategory(e.target.value)}
-                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}>
-                    {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                >
+                    {categories.map((c) => {
+                        const count = c === "All"
+                            ? Array.from(categoryCounts.values()).reduce((a, b) => a + b, 0)
+                            : (categoryCounts.get(c) || 0);
+                        const label = `${c} (${count})`;
+                        return <option key={c} value={c}>{label}</option>;
+                    })}
                 </select>
             </div>
+
+            {/* ... keep your Sort, Quick search, and Price range blocks ... */}
+
 
             {/* Sort */}
             <div className="mt-4">
@@ -354,40 +367,47 @@ function Home({
     lots, query, setQuery, category, setCategory, sortBy, setSortBy, dark,
     priceSteps, priceMin, priceMax, setPriceMin, setPriceMax
 }) {
-
-    const categories = useMemo(() => ["All", ...new Set(lots.map((l) => l.category))], [lots]);
-
-    // tick every second so countdowns update live
+    // live tick for countdowns
     const [nowTick, setNowTick] = useState(Date.now());
     useEffect(() => {
         const t = setInterval(() => setNowTick(Date.now()), 1000);
         return () => clearInterval(t);
     }, []);
 
-    // ?? Apply text, category, price, and sort filters
-    const filtered = useMemo(() => {
+    // 1) Apply text + price filters (NOT category yet)
+    const baseFiltered = useMemo(() => {
         let out = lots.filter((l) =>
             `${l.title} ${l.location} ${l.seller}`.toLowerCase().includes(query.toLowerCase())
         );
+        out = out.filter((l) => l.currentBid >= priceMin && l.currentBid <= priceMax);
+        return out;
+    }, [lots, query, priceMin, priceMax]);
+
+    // 2) Category counts from the base set
+    const categoryCounts = useMemo(() => {
+        const map = new Map();
+        for (const l of baseFiltered) {
+            map.set(l.category, (map.get(l.category) || 0) + 1);
+        }
+        return map; // Map<string, number>
+    }, [baseFiltered]);
+
+    // 3) Category list (All + sorted)
+    const categories = useMemo(() => {
+        const arr = Array.from(categoryCounts.keys()).sort((a, b) => a.localeCompare(b));
+        return ["All", ...arr];
+    }, [categoryCounts]);
+
+    // 4) Apply category + sort to produce final list
+    const filtered = useMemo(() => {
+        let out = baseFiltered;
         if (category !== "All") out = out.filter((l) => l.category === category);
 
-        // price range filter (current bid)
-        out = out.filter((l) => l.currentBid >= priceMin && l.currentBid <= priceMax);
-
-        if (sortBy === "endingSoon") out = out.sort((a, b) => msLeft(a.endsAt) - msLeft(b.endsAt));
-        if (sortBy === "priceHigh") out = out.sort((a, b) => b.currentBid - a.currentBid);
-        if (sortBy === "priceLow") out = out.sort((a, b) => a.currentBid - b.currentBid);
-
+        if (sortBy === "endingSoon") out = out.slice().sort((a, b) => msLeft(a.endsAt) - msLeft(b.endsAt));
+        if (sortBy === "priceHigh") out = out.slice().sort((a, b) => b.currentBid - a.currentBid);
+        if (sortBy === "priceLow") out = out.slice().sort((a, b) => a.currentBid - b.currentBid);
         return out;
-    }, [lots, query, category, sortBy, priceMin, priceMax, nowTick]);
-    // If steps aren't ready yet, show a tiny placeholder (prevents blank screen)
-    if (!priceSteps || !priceSteps.length) {
-        return (
-            <main className="max-w-7xl mx-auto px-4 py-8">
-                <div className={`${dark ? "text-neutral-300" : "text-gray-600"}`}>Loading filters…</div>
-            </main>
-        );
-    }
+    }, [baseFiltered, category, sortBy, nowTick]);
 
     return (
         <main className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -399,6 +419,7 @@ function Home({
                     priceMax={priceMax}
                     setPriceMin={setPriceMin}
                     setPriceMax={setPriceMax}
+                    categoryCounts={categoryCounts} // pass counts
                 />
             </aside>
 
@@ -417,24 +438,35 @@ function Home({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <AnimatePresence>
                         {filtered.map((l) => (
-                            <Motion.div key={l.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}>
+                            <Motion.div
+                                key={l.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                            >
                                 <Card lot={l} dark={dark} />
                             </Motion.div>
                         ))}
                     </AnimatePresence>
                 </div>
 
-
                 {filtered.length === 0 && (
                     <Motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className={`mt-8 p-6 rounded-2xl border text-center ${dark ? "bg-neutral-900 border-neutral-800 text-neutral-300" : "bg-white text-gray-600"
+                        className={`mt-8 p-6 rounded-2xl border text-center ${dark
+                                ? "bg-neutral-900 border-neutral-800 text-neutral-300"
+                                : "bg-white text-gray-600"
                             }`}
                     >
-                        No listings match your filters.{" "}
+                        No listings match your filters{" "}
                         <button
-                            onClick={() => { setQuery(""); setCategory("All"); setPriceMin(0); setPriceMax(priceSteps[priceSteps.length - 1] || 0); }}
+                            onClick={() => {
+                                setQuery("");
+                                setCategory("All");
+                                setPriceMin(0);
+                                setPriceMax(priceSteps[priceSteps.length - 1] || 0);
+                            }}
                             className="underline"
                         >
                             Reset filters
@@ -445,6 +477,7 @@ function Home({
         </main>
     );
 }
+
 
 
 // ===== Lightbox (zoom, pan, pinch, nav, blur-up, fallback) =====
