@@ -145,7 +145,7 @@ function prettyLeft(iso) {
 }
 
 // ---- Layout & shared UI ----
-function Header({ query, setQuery, dark, setDark }) {
+function Header({ query, setQuery, dark, setDark, user, setUser }) {
     return (
         <header className={`sticky top-0 z-30 border-b ${dark ? "bg-neutral-900/80 text-white" : "bg-white/80"} backdrop-blur supports-[backdrop-filter]:bg-white/60`}>
             <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
@@ -172,10 +172,27 @@ function Header({ query, setQuery, dark, setDark }) {
                 </button>
 
                 <div className="flex items-center gap-2">
-                    <button className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-sm">Sell equipment</button>
-                    <Link to="/signin" className={`px-3 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""}`}>
-                           Sign in
-                         </Link>
+                    <button className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-sm">
+                        Sell equipment
+                    </button>
+
+                    {user ? (
+                        <>
+                            <span className={`text-xs px-2 py-1 rounded-lg border ${dark ? "border-neutral-700" : "border-gray-200"}`}>
+                                Signed in as {user.email}
+                            </span>
+                            <button
+                                onClick={() => setUser(null)}
+                                className={`px-3 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""}`}
+                            >
+                                Sign out
+                            </button>
+                        </>
+                    ) : (
+                        <Link to="/signin" className={`px-3 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""}`}>
+                            Sign in
+                        </Link>
+                    )}
                 </div>
             </div>
         </header>
@@ -911,7 +928,7 @@ function LotMap({ lot, dark }) {
 }
 
 // ===== LotDetail (hooks first; bidding + lightbox) =====
-function LotDetail({ lots, setLots, dark }) {
+function LotDetail({ lots, setLots, dark, user }) {
     const { id } = useParams();
     const nav = useNavigate();
     const lot = lots.find((l) => l.id === id);
@@ -1126,19 +1143,41 @@ function LotDetail({ lots, setLots, dark }) {
                         <p className={`mt-2 text-xs ${error ? "text-red-600" : dark ? "text-neutral-400" : "text-gray-500"}`}>
                             Minimum bid is {"\u20AC"}{MIN_BID}. Bids increase in {"\u20AC"}{STEP} steps (e.g. 250, 300, 350). Your bid must be higher than the current bid.
                         </p>
-
+                        
                         {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
 
-                        <div className="mt-3 flex gap-2">
-                            <button
-                                className={`flex-1 py-2 rounded-xl text-white ${error ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
-                                onClick={placeBid}
-                                disabled={Boolean(error)}
+                        {/* Signed-out notice */}
+                        {!user && (
+                            <div
+                                className={`mt-3 rounded-xl border p-3 text-sm ${dark
+                                        ? "bg-neutral-900 border-neutral-800 text-neutral-200"
+                                        : "bg-blue-50 border-blue-200 text-blue-900"
+                                    }`}
                             >
-                                Place bid
-                            </button>
-                            <button className="py-2 px-3 rounded-xl border" onClick={() => alert("Buy now (mock)")}>Buy now</button>
-                        </div>
+                                You must be signed in to place bids or buy now.{" "}
+                                <Link to="/signin" className="underline">Sign in</Link>
+                            </div>
+                        )}
+
+                        {/* Action buttons — only show when signed in */}
+                        {user && (
+                            <div className="mt-3 flex gap-2">
+                                <button
+                                    className={`flex-1 py-2 rounded-xl text-white ${error ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                                        }`}
+                                    onClick={placeBid}
+                                    disabled={Boolean(error)}
+                                >
+                                    Place bid
+                                </button>
+                                <button
+                                    className="py-2 px-3 rounded-xl border"
+                                    onClick={() => alert("Buy now (mock)")}
+                                >
+                                    Buy now
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -1162,7 +1201,7 @@ function LotDetail({ lots, setLots, dark }) {
 
 
 
-function SignIn({ dark }) {
+function SignIn({ dark, setUser }) {
     const nav = useNavigate();
     const [email, setEmail] = React.useState("");
     const [password, setPassword] = React.useState("");
@@ -1186,6 +1225,7 @@ function SignIn({ dark }) {
         setTimeout(() => {
             setLoading(false);
             alert("Signed in (mock). You can replace this with your real auth later.");
+            setUser({ email });
             nav("/"); // go back to home after sign-in
         }, 800);
     };
@@ -1284,6 +1324,22 @@ export default function App() {
     const [defects, setDefects] = useState("All"); 
     const [sortBy, setSortBy] = useState("endingSoon");
     const [dark, setDark] = useState(false);
+    // --- Auth (mock) ---
+    // --- Auth (mock) ---
+    const [user, setUser] = React.useState(() => {
+        try { const raw = localStorage.getItem("hb_user"); return raw ? JSON.parse(raw) : null; }
+        catch { return null; }
+    });
+    React.useEffect(() => {
+        if (user) localStorage.setItem("hb_user", JSON.stringify(user));
+        else localStorage.removeItem("hb_user");
+    }, [user]);
+
+    React.useEffect(() => {
+        if (user) localStorage.setItem("hb_user", JSON.stringify(user));
+        else localStorage.removeItem("hb_user");
+    }, [user]);
+
 
     // Compute max bid and steps (always yields at least [0, max])
     const maxCurrentBid = useMemo(
@@ -1311,7 +1367,7 @@ export default function App() {
     return (
         <div className={dark ? "bg-neutral-950 text-white min-h-screen" : "bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900 min-h-screen"}>
             <BrowserRouter>
-                <Header {...{ query, setQuery, dark, setDark }} />
+                <Header {...{ query, setQuery, dark, setDark, user, setUser }} />
                 <Routes>
                     <Route
                         path="/"
@@ -1326,11 +1382,12 @@ export default function App() {
                                 priceMax={priceMax}
                                 setPriceMin={setPriceMin}
                                 setPriceMax={setPriceMax}
+                                dark={dark}
                             />
                         }
                     />
-                    <Route path="/lot/:id" element={<LotDetail lots={lots} setLots={setLots} dark={dark} />} />
-                    <Route path="/signin" element={<SignIn dark={dark} />} />
+                    <Route path="/lot/:id" element={<LotDetail lots={lots} setLots={setLots} dark={dark} user={user} />} />
+                    <Route path="/signin" element={<SignIn dark={dark} setUser={setUser} />} />
                     <Route path="*" element={<div className="max-w-5xl mx-auto px-4 py-12">Not found</div>} />
                 </Routes>
                 <footer className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} border-t mt-8`}>
