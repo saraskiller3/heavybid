@@ -189,10 +189,15 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                             </button>
                         </>
                     ) : (
+                    <>
                         <Link to="/signin" className={`px-3 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""}`}>
                             Sign in
                         </Link>
-                    )}
+                        <Link to="/signup" className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm">
+                            Sign up
+                        </Link>
+                    </>
+)}
                 </div>
             </div>
         </header>
@@ -1200,7 +1205,86 @@ function LotDetail({ lots, setLots, dark, user }) {
 }
 
 
+function SignUp({ dark, setUser }) {
+    const nav = useNavigate();
+    const [email, setEmail] = React.useState("");
+    const [password, setPassword] = React.useState("");
+    const [confirm, setConfirm] = React.useState("");
+    const [error, setError] = React.useState("");
 
+    const onSubmit = (e) => {
+        e.preventDefault();
+        // simple validations
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError("Please enter a valid email.");
+        if (password.length < 6) return setError("Password must be at least 6 characters.");
+        if (password !== confirm) return setError("Passwords do not match.");
+        setError("");
+
+        // mock 'create account'
+        setUser({ email });
+        nav("/"); // go to home (or wherever you want)
+    };
+
+    return (
+        <div className="max-w-md mx-auto px-4 py-12">
+            <div className={`rounded-2xl border p-6 ${dark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white border-gray-200"}`}>
+                <h1 className="text-2xl font-semibold">Create your account</h1>
+                <p className={`text-sm mt-1 ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                    Sign up to place bids and manage your listings.
+                </p>
+
+                <form onSubmit={onSubmit} className="mt-6 space-y-4">
+                    <div>
+                        <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Email</label>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="you@example.com"
+                            autoComplete="email"
+                            className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                        />
+                    </div>
+
+                    <div>
+                        <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Password</label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Password"
+                            autoComplete="new-password"
+                            className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                        />
+                        <p className={`mt-1 text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>At least 6 characters.</p>
+                    </div>
+
+                    <div>
+                        <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Confirm password</label>
+                        <input
+                            type="password"
+                            value={confirm}
+                            onChange={(e) => setConfirm(e.target.value)}
+                            placeholder="Repeat password"
+                            autoComplete="new-password"
+                            className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                        />
+                    </div>
+
+                    {error && <div className={dark ? "text-red-300 text-sm" : "text-red-600 text-sm"}>{error}</div>}
+
+                    <button type="submit" className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm">
+                        Create account
+                    </button>
+                </form>
+
+                <div className={`mt-6 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                    Already have an account? <Link to="/signin" className="underline">Sign in</Link>
+                </div>
+            </div>
+        </div>
+    );
+}
 function SignIn({ dark, setUser }) {
     const nav = useNavigate();
     const [email, setEmail] = React.useState("");
@@ -1291,7 +1375,7 @@ function SignIn({ dark, setUser }) {
                             disabled={loading}
                             className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-60"
                         >
-                            {loading ? "Signing in…" : "Sign in"}
+                            {loading ? "Signing in..." : "Sign in"}
                         </button>
                         <button
                             type="button"
@@ -1304,7 +1388,7 @@ function SignIn({ dark, setUser }) {
                 </form>
 
                 <div className={`mt-6 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                    Don't have an account? <span className="underline cursor-pointer" onClick={() => alert("TODO: Sign up page")}>Sign up</span>
+                    Don't have an account? <Link to="/signup" className="underline">Sign up</Link>
                 </div>
             </div>
         </div>
@@ -1388,6 +1472,7 @@ export default function App() {
                     />
                     <Route path="/lot/:id" element={<LotDetail lots={lots} setLots={setLots} dark={dark} user={user} />} />
                     <Route path="/signin" element={<SignIn dark={dark} setUser={setUser} />} />
+                    <Route path="/signup" element={<SignUp dark={dark} setUser={setUser} />} />
                     <Route path="*" element={<div className="max-w-5xl mx-auto px-4 py-12">Not found</div>} />
                 </Routes>
                 <footer className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} border-t mt-8`}>
