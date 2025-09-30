@@ -147,6 +147,7 @@ function prettyLeft(iso) {
 // ---- Layout & shared UI ----
 function Header({ query, setQuery, dark, setDark, user, setUser }) {
     const navigate = useNavigate();
+    const location = useLocation();
     return (
         <header
             className={`sticky top-0 z-30 border-b ${dark ? "bg-neutral-900/80 text-white" : "bg-white/80"
@@ -207,7 +208,8 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                     </Link>
                 ) : (
                     <Link
-                        to="/signin"
+                            to="/signin"
+                            state={{ from: location }}
                         className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-sm"
                     >
                         Sell equipment
@@ -237,14 +239,16 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                 ) : (
                     <>
                         <Link
-                            to="/signin"
+                                to="/signin"
+                                state={{ from: location }}
                             className={`px-3 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""
                                 }`}
                         >
                             Sign in
                         </Link>
                         <Link
-                            to="/signup"
+                                to="/signup"
+                                state={{ from: location }}
                             className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm"
                         >
                             Sign up
@@ -989,6 +993,7 @@ function LotDetail({ lots, setLots, dark, user }) {
     const { id } = useParams();
     const nav = useNavigate();
     const lot = lots.find((l) => l.id === id);
+    const location = useLocation();
 
     // Hooks must always be at the top (no conditionals)
     const [_tick, setTick] = useState(0); // just to re-render countdown each second
@@ -1212,7 +1217,7 @@ function LotDetail({ lots, setLots, dark, user }) {
                                     }`}
                             >
                                 You must be signed in to place bids or buy now.{" "}
-                                <Link to="/signin" className="underline">Sign in</Link>
+                                <Link to="/signin" state={{ from: location }} className="underline">Sign in</Link>
                             </div>
                         )}
 
@@ -1448,19 +1453,7 @@ function SignIn({ dark, setUser }) {
         </div>
     );
 }
-function Sell({ dark }) {
-    return (
-        <div className="max-w-2xl mx-auto px-4 py-12">
-            <div className={`rounded-2xl border p-6 ${dark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white"}`}>
-                <h1 className="text-2xl font-semibold mb-2">Sell equipment</h1>
-                <p className="text-sm">
-                    This is a placeholder. Once implemented, users will be able to create
-                    auction listings here.
-                </p>
-            </div>
-        </div>
-    );
-}
+
 function RequireAuth({ user, children }) {
     const location = useLocation();
     if (!user) {
@@ -1468,6 +1461,292 @@ function RequireAuth({ user, children }) {
         return <Navigate to="/signin" replace state={{ from: location }} />;
     }
     return children;
+}
+function Sell({ dark, user, lots, setLots }) {
+    const nav = useNavigate();
+
+    // --- Allowed options ---
+    const categoryOptions = ["Excavator", "Wheel loader", "Bulldozer", "Crane"]; // adjust as needed
+    const conditionOptions = ["Used", "New"];
+    const defectsOptions = ["With defects", "Without defects"];
+    const years = Array.from({ length: 2025 - 1900 + 1 }, (_, i) => 1900 + i).reverse();
+
+    // --- Form state ---
+    const [title, setTitle] = React.useState("");
+    const [category, setCategory] = React.useState(categoryOptions[0]);
+    const [year, setYear] = React.useState(2015);
+    const [condition, setCondition] = React.useState("Used");
+    const [defects, setDefects] = React.useState("Without defects");
+
+    const [engine, setEngine] = React.useState("");
+    const [power, setPower] = React.useState("");
+    const [weight, setWeight] = React.useState("");
+    const [hours, setHours] = React.useState("");
+
+    const [description, setDescription] = React.useState("");
+    const [documents, setDocuments] = React.useState(""); // newline or comma-separated
+    const [location, setLocation] = React.useState(""); // City, Country
+    const [photos, setPhotos] = React.useState(""); // each URL on new line
+
+    const [startPrice, setStartPrice] = React.useState(250);
+    const [buyNowPrice, setBuyNowPrice] = React.useState("");
+
+    const [error, setError] = React.useState("");
+
+    // --- Pricing helpers (min €250, steps €50) ---
+    const STEP = 50, MIN_PRICE = 250;
+    const snapPrice = (v) => {
+        const n = Math.max(MIN_PRICE, Number(v || 0));
+        return Math.ceil(n / STEP) * STEP;
+    };
+
+    // show helper copy
+    const pricingHelp = "Minimum is €250, amounts increase in €50 steps (e.g. 250, 300, 350…).";
+
+    function validate() {
+        if (!title.trim()) return "Please enter a machine name.";
+        if (!categoryOptions.includes(category)) return "Choose a valid category.";
+        const y = Number(year);
+        if (!(y >= 1900 && y <= 2025)) return "Year must be between 1900 and 2025.";
+        if (!conditionOptions.includes(condition)) return "Choose a valid condition.";
+        if (!defectsOptions.includes(defects)) return "Choose a valid defects option.";
+        if (!location.trim()) return "Please enter a location (e.g., Riga, Latvia).";
+
+        const sp = snapPrice(startPrice);
+        if (sp < MIN_PRICE) return "Starting price must be at least €250.";
+        const bp = buyNowPrice === "" ? "" : snapPrice(buyNowPrice);
+        if (bp !== "" && bp < sp) return "Buy now price must be ? starting price.";
+        // at least one photo URL
+        const photoList = photos.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean);
+        if (photoList.length === 0) return "Please add at least one photo URL.";
+
+        return "";
+    }
+
+    function onSubmit(e) {
+        e.preventDefault();
+        const err = validate();
+        if (err) { setError(err); return; }
+        setError("");
+
+        const sp = snapPrice(startPrice);
+        const bp = buyNowPrice === "" ? undefined : snapPrice(buyNowPrice);
+        const photoList = photos.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean);
+        const docList = documents.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean);
+
+        // Build new lot object matching your schema
+        const newId = `NEW${Date.now().toString().slice(-6)}`;
+        const hasDefects = defects === "With defects";
+        const hrs = hours === "-" || hours === "" ? undefined : Number(hours);
+
+        const specsObj = {};
+        if (engine && engine !== "-") specsObj.engine = engine;
+        if (power && power !== "-") specsObj.power = power;
+        if (weight && weight !== "-") specsObj.weight = weight;
+
+        const newLot = {
+            id: newId,
+            title: title.trim(),
+            location: location.trim(), // "City, Country"
+            images: photoList,
+            year: Number(year),
+            hours: hrs,
+            condition,
+            hasDefects,
+            currentBid: sp,
+            reserve: false,
+            buyNow: bp,
+            endsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days from now
+            category,
+            seller: user?.email || "Seller",
+            specs: specsObj,
+            description: description.trim(),
+            documents: docList,
+        };
+
+        setLots(prev => [newLot, ...prev]);
+        nav(`/lot/${newId}`);
+    }
+
+    return (
+        <div className="max-w-3xl mx-auto px-4 py-10">
+            <div className={`rounded-2xl border p-6 ${dark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white border-gray-200"}`}>
+                <h1 className="text-2xl font-semibold">Sell equipment</h1>
+                <p className={`text-sm mt-1 ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                    Fill in the details below to create your auction listing.
+                </p>
+
+                <form className="mt-6 space-y-6" onSubmit={onSubmit}>
+                    {/* Basic */}
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-medium">Machine name</label>
+                            <input
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder="e.g., 2018 Volvo L120 Wheel Loader"
+                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium">Category</label>
+                            <select
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            >
+                                {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-3 gap-4">
+                        <div>
+                            <label className="text-xs font-medium">Year</label>
+                            <select
+                                value={year}
+                                onChange={(e) => setYear(Number(e.target.value))}
+                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            >
+                                {years.map((y) => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium">Condition</label>
+                            <select
+                                value={condition}
+                                onChange={(e) => setCondition(e.target.value)}
+                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            >
+                                {conditionOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium">Defects</label>
+                            <select
+                                value={defects}
+                                onChange={(e) => setDefects(e.target.value)}
+                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            >
+                                {defectsOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Specs (writable, '-' allowed) */}
+                    <div>
+                        <label className="text-xs font-medium block mb-2">Specifications</label>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <input value={engine} onChange={(e) => setEngine(e.target.value)} placeholder="Engine (or -)"
+                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                            <input value={power} onChange={(e) => setPower(e.target.value)} placeholder="Power (or -)"
+                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                            <input value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Weight (or -)"
+                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                            <input value={hours} onChange={(e) => setHours(e.target.value)} placeholder="Hours (or -)"
+                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                        </div>
+                    </div>
+
+                    {/* Description & documents */}
+                    <div>
+                        <label className="text-xs font-medium">Description</label>
+                        <textarea
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            rows={4}
+                            placeholder="Describe condition, attachments, maintenance, etc."
+                            className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                        />
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-medium">Documents (one per line)</label>
+                            <textarea
+                                value={documents}
+                                onChange={(e) => setDocuments(e.target.value)}
+                                rows={3}
+                                placeholder="e.g., CE certificate\nService records"
+                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium">Photos (URL per line)</label>
+                            <textarea
+                                value={photos}
+                                onChange={(e) => setPhotos(e.target.value)}
+                                rows={3}
+                                placeholder="https://example.com/photo1.jpg\nhttps://example.com/photo2.jpg"
+                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Pricing */}
+                    <div>
+                        <label className="text-xs font-medium">Pricing</label>
+                        <div className={`mt-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>{pricingHelp}</div>
+                        <div className="mt-2 grid sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs">Starting price (EUR)</label>
+                                <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    value={startPrice}
+                                    onChange={(e) => setStartPrice(snapPrice(e.target.value))}
+                                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs">Buy now price (EUR, optional)</label>
+                                <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    value={buyNowPrice}
+                                    onChange={(e) => setBuyNowPrice(e.target.value === "" ? "" : snapPrice(e.target.value))}
+                                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Location */}
+                    <div>
+                        <label className="text-xs font-medium">Location</label>
+                        <input
+                            value={location}
+                            onChange={(e) => setLocation(e.target.value)}
+                            placeholder="City, Country"
+                            className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                        />
+                    </div>
+
+                    {/* Error */}
+                    {error && (
+                        <div className={dark ? "text-red-300 text-sm" : "text-red-600 text-sm"}>{error}</div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="pt-2 flex gap-2">
+                        <button
+                            type="submit"
+                            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                        >
+                            Create listing
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => nav(-1)}
+                            className={`px-4 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""}`}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
 }
 // ---- App root ----
 export default function App() {
@@ -1552,7 +1831,7 @@ export default function App() {
                         path="/sell"
                         element={
                             <RequireAuth user={user}>
-                                <Sell dark={dark} />
+                                <Sell dark={dark} user={user} lots={lots} setLots={setLots} />
                             </RequireAuth>
                         }
                     />
