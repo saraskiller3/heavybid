@@ -1488,20 +1488,15 @@ function Sell({ dark, user, lots, setLots }) {
     const [location, setLocation] = React.useState(""); // City, Country
     const [photos, setPhotos] = React.useState(""); // each URL on new line
 
-    const [startPrice, setStartPrice] = React.useState(250);
+    const [startPrice, setStartPrice] = React.useState(0);
     const [buyNowPrice, setBuyNowPrice] = React.useState("");
 
     const [error, setError] = React.useState("");
 
-    // --- Pricing helpers (min €250, steps €50) ---
-    const STEP = 50, MIN_PRICE = 250;
-    const snapPrice = (v) => {
-        const n = Math.max(MIN_PRICE, Number(v || 0));
-        return Math.ceil(n / STEP) * STEP;
-    };
+   
 
     // show helper copy
-    const pricingHelp = "Minimum is €250, amounts increase in €50 steps (e.g. 250, 300, 350…).";
+    const pricingHelp = "Minimum is \u20AC250, amounts increase in \u20AC50 steps (e.g. 250, 300, 350...).";
 
     function validate() {
         if (!title.trim()) return "Please enter a machine name.";
@@ -1512,10 +1507,19 @@ function Sell({ dark, user, lots, setLots }) {
         if (!defectsOptions.includes(defects)) return "Choose a valid defects option.";
         if (!location.trim()) return "Please enter a location (e.g., Riga, Latvia).";
 
-        const sp = snapPrice(startPrice);
-        if (sp < MIN_PRICE) return "Starting price must be at least €250.";
-        const bp = buyNowPrice === "" ? "" : snapPrice(buyNowPrice);
-        if (bp !== "" && bp < sp) return "Buy now price must be ? starting price.";
+        // Starting price: numeric, >= 250, multiple of 50
+        const sp = Number(startPrice);
+        if (!Number.isFinite(sp)) return "Starting price must be a number.";
+        if (sp < 250) return "Starting price must be at least  \u20AC250.";
+        if (sp % 50 !== 0) return "Starting price must increase in  \u20AC50 steps (e.g., 250, 300, 350...).";
+        // Buy now: optional, but if present must be numeric, >= 250, multiple of 50, and >= start
+        if (buyNowPrice !== "") {
+            const bp = Number(buyNowPrice);
+            if (!Number.isFinite(bp)) return "Buy now price must be a number.";
+            if (bp < 250) return "Buy now price must be at least \u20AC250.";
+            if (bp % 50 !== 0) return "Buy now price must increase in \u20AC50 steps (e.g., 250, 300, 350...).";
+            if (bp < sp) return "Buy now price must be greater than or equal to the starting price.";
+        }
         // at least one photo URL
         const photoList = photos.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean);
         if (photoList.length === 0) return "Please add at least one photo URL.";
@@ -1529,8 +1533,8 @@ function Sell({ dark, user, lots, setLots }) {
         if (err) { setError(err); return; }
         setError("");
 
-        const sp = snapPrice(startPrice);
-        const bp = buyNowPrice === "" ? undefined : snapPrice(buyNowPrice);
+        const sp = Number(startPrice);
+        const bp = buyNowPrice === "" ? undefined : Number(buyNowPrice);
         const photoList = photos.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean);
         const docList = documents.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean);
 
@@ -1694,7 +1698,7 @@ function Sell({ dark, user, lots, setLots }) {
                                     type="number"
                                     inputMode="numeric"
                                     value={startPrice}
-                                    onChange={(e) => setStartPrice(snapPrice(e.target.value))}
+                                    onChange={(e) => setStartPrice(e.target.value)}
                                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                                 />
                             </div>
@@ -1704,7 +1708,8 @@ function Sell({ dark, user, lots, setLots }) {
                                     type="number"
                                     inputMode="numeric"
                                     value={buyNowPrice}
-                                    onChange={(e) => setBuyNowPrice(e.target.value === "" ? "" : snapPrice(e.target.value))}
+                                    onChange={(e) => setBuyNowPrice(e.target.value)}
+                                    placeholder="(optional)"
                                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                                 />
                             </div>
