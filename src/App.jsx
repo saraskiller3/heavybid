@@ -3,7 +3,7 @@
 // If you haven't yet: npm install react-router-dom framer-motion lucide-react
 
 import React, { useMemo, useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Link, useParams, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link, useParams, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { Search, Clock, MapPin, Sun, Moon, ChevronLeft, CheckCircle2, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
@@ -146,59 +146,111 @@ function prettyLeft(iso) {
 
 // ---- Layout & shared UI ----
 function Header({ query, setQuery, dark, setDark, user, setUser }) {
+    const navigate = useNavigate();
     return (
-        <header className={`sticky top-0 z-30 border-b ${dark ? "bg-neutral-900/80 text-white" : "bg-white/80"} backdrop-blur supports-[backdrop-filter]:bg-white/60`}>
+        <header
+            className={`sticky top-0 z-30 border-b ${dark ? "bg-neutral-900/80 text-white" : "bg-white/80"
+                } backdrop-blur supports-[backdrop-filter]:bg-white/60`}
+        >
             <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
-                <Link to="/" className={`w-10 h-10 rounded-2xl grid place-items-center font-extrabold ${dark ? "bg-blue-500 text-white" : "bg-blue-600 text-white"}`}>HB</Link>
+                <Link
+                    to="/"
+                    className={`w-10 h-10 rounded-2xl grid place-items-center font-extrabold ${dark ? "bg-blue-500 text-white" : "bg-blue-600 text-white"
+                        }`}
+                >
+                    HB
+                </Link>
+
                 <div className="mr-auto">
                     <div className="text-xl font-extrabold leading-5">HeavyBid</div>
-                    <div className="text-xs ...">Heavy machinery auctions {"\u00B7"} EU</div>
+                    <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>
+                        Heavy machinery auctions {"\u00B7"} EU
+                    </div>
                 </div>
 
+                {/* Search */}
                 <div className="hidden md:flex items-center gap-2 flex-1 max-w-xl mx-6">
                     <div className="relative w-full">
                         <input
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder={"Search model, location, seller\u2026"}
-                            className={`w-full border ${dark ? "border-neutral-700 bg-neutral-800 text-white placeholder-neutral-400" : "border-gray-200"} focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none rounded-xl pl-9 pr-3 py-2 text-sm`}
+                            className={`w-full border ${dark
+                                    ? "border-neutral-700 bg-neutral-800 text-white placeholder-neutral-400"
+                                    : "border-gray-200"
+                                } focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none rounded-xl pl-9 pr-3 py-2 text-sm`}
                         />
-                        <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"}`} />
+                        <Search
+                            size={16}
+                            className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"
+                                }`}
+                        />
                     </div>
                 </div>
 
-                <button onClick={() => setDark(!dark)} className={`p-2 rounded-xl border ${dark ? "border-neutral-700" : "border-gray-200"}`} aria-label="Toggle theme">
+                {/* Theme toggle */}
+                <button
+                    onClick={() => setDark(!dark)}
+                    className={`p-2 rounded-xl border ${dark ? "border-neutral-700" : "border-gray-200"}`}
+                    aria-label="Toggle theme"
+                >
                     {dark ? <Sun size={16} /> : <Moon size={16} />}
                 </button>
 
-                <div className="flex items-center gap-2">
-                    <button className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-sm">
+                {/* Sell equipment routes to /sell if signed in, /signin if not */}
+                {user ? (
+                    <Link
+                        to="/sell"
+                        className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-sm"
+                    >
                         Sell equipment
-                    </button>
+                    </Link>
+                ) : (
+                    <Link
+                        to="/signin"
+                        className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-sm"
+                    >
+                        Sell equipment
+                    </Link>
+                )}
 
-                    {user ? (
-                        <>
-                            <span className={`text-xs px-2 py-1 rounded-lg border ${dark ? "border-neutral-700" : "border-gray-200"}`}>
-                                Signed in as {user.email}
-                            </span>
-                            <button
-                                onClick={() => setUser(null)}
-                                className={`px-3 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""}`}
-                            >
-                                Sign out
-                            </button>
-                        </>
-                    ) : (
+                {/* Auth area */}
+                {user ? (
                     <>
-                        <Link to="/signin" className={`px-3 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""}`}>
+                        <span
+                            className={`text-xs px-2 py-1 rounded-lg border ${dark ? "border-neutral-700" : "border-gray-200"
+                                }`}
+                        >
+                            Signed in as {user.email}
+                        </span>
+                        <button
+                            onClick={() => {
+                                setUser(null);
+                                navigate("/"); // redirect to home
+                            }}
+                            className={`px-3 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""
+                                }`}
+                        >
+                            Sign out
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <Link
+                            to="/signin"
+                            className={`px-3 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""
+                                }`}
+                        >
                             Sign in
                         </Link>
-                        <Link to="/signup" className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm">
+                        <Link
+                            to="/signup"
+                            className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                        >
                             Sign up
                         </Link>
                     </>
-)}
-                </div>
+                )}
             </div>
         </header>
     );
@@ -1292,6 +1344,8 @@ function SignIn({ dark, setUser }) {
     const [showPw, setShowPw] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState("");
+    const location = useLocation();
+    const from = location.state?.from?.pathname || "/"
 
     const validate = () => {
         if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) return "Please enter a valid email.";
@@ -1310,7 +1364,7 @@ function SignIn({ dark, setUser }) {
             setLoading(false);
             alert("Signed in (mock). You can replace this with your real auth later.");
             setUser({ email });
-            nav("/"); // go back to home after sign-in
+            nav(from, { replace: true }); // ? go back to intended page (or home)
         }, 800);
     };
 
@@ -1394,7 +1448,27 @@ function SignIn({ dark, setUser }) {
         </div>
     );
 }
-
+function Sell({ dark }) {
+    return (
+        <div className="max-w-2xl mx-auto px-4 py-12">
+            <div className={`rounded-2xl border p-6 ${dark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white"}`}>
+                <h1 className="text-2xl font-semibold mb-2">Sell equipment</h1>
+                <p className="text-sm">
+                    This is a placeholder. Once implemented, users will be able to create
+                    auction listings here.
+                </p>
+            </div>
+        </div>
+    );
+}
+function RequireAuth({ user, children }) {
+    const location = useLocation();
+    if (!user) {
+        // send them to /signin, and remember where they tried to go
+        return <Navigate to="/signin" replace state={{ from: location }} />;
+    }
+    return children;
+}
 // ---- App root ----
 export default function App() {
     // Lots
@@ -1474,6 +1548,14 @@ export default function App() {
                     <Route path="/signin" element={<SignIn dark={dark} setUser={setUser} />} />
                     <Route path="/signup" element={<SignUp dark={dark} setUser={setUser} />} />
                     <Route path="*" element={<div className="max-w-5xl mx-auto px-4 py-12">Not found</div>} />
+                    <Route
+                        path="/sell"
+                        element={
+                            <RequireAuth user={user}>
+                                <Sell dark={dark} />
+                            </RequireAuth>
+                        }
+                    />
                 </Routes>
                 <footer className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} border-t mt-8`}>
                     <div className="max-w-7xl mx-auto px-4 py-6 text-sm flex flex-col sm:flex-row gap-2 sm:justify-between">
