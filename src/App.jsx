@@ -239,7 +239,7 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                     <>
                         <Link
                                 to="/signin"
-                                state={{ from: location }}
+                                state={{ from: "/" }}
                             className={`px-3 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""
                                 }`}
                         >
@@ -247,7 +247,7 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                         </Link>
                         <Link
                                 to="/signup"
-                                state={{ from: location }}
+                                state={{ from: "/" }}
                             className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm"
                         >
                             Sign up
