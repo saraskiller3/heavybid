@@ -148,6 +148,7 @@ function prettyLeft(iso) {
 function Header({ query, setQuery, dark, setDark, user, setUser }) {
     const navigate = useNavigate();
     const location = useLocation();
+    const isHome = location.pathname === "/";
     return (
         <header
             className={`sticky top-0 z-30 border-b ${dark ? "bg-neutral-900/80 text-white" : "bg-white/80"
@@ -170,25 +171,23 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                 </div>
 
                 {/* Search */}
-                <div className="hidden md:flex items-center gap-2 flex-1 max-w-xl mx-6">
-                    <div className="relative w-full">
-                        <input
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            placeholder={"Search model, location, seller\u2026"}
-                            className={`w-full border ${dark
-                                    ? "border-neutral-700 bg-neutral-800 text-white placeholder-neutral-400"
-                                    : "border-gray-200"
-                                } focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none rounded-xl pl-9 pr-3 py-2 text-sm`}
-                        />
-                        <Search
-                            size={16}
-                            className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"
-                                }`}
-                        />
+                {isHome && (
+                    <div className="hidden md:flex items-center gap-2 flex-1 max-w-xl mx-6">
+                        <div className="relative w-full">
+                            <input
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                placeholder={"Search model, location, seller..."}
+                                className={`w-full border ${dark ? "border-neutral-700 bg-neutral-800 text-white placeholder-neutral-400" : "border-gray-200"
+                                    } focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none rounded-xl pl-9 pr-3 py-2 text-sm`}
+                            />
+                            <Search
+                                size={16}
+                                className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-neutral-400" : "text-gray-400"}`}
+                            />
+                        </div>
                     </div>
-                </div>
-
+                )}
                 {/* Theme toggle */}
                 <button
                     onClick={() => setDark(!dark)}
@@ -1775,12 +1774,20 @@ function Sell({ dark, user, lots, setLots }) {
                                     inputMode="numeric"
                                     value={startPrice}
                                     onChange={(e) => {
-                                        const v = e.target.value;
+                                        let v = e.target.value;
+                                        if (v.length > 1 && v.startsWith("0")) {
+                                            v = v.replace(/^0+/, ""); // remove all leading zeros
+                                            if (v === "") v = "0";
+                                        }
                                         setStartPrice(v);
                                         setStartErr(validateStartPrice(v));
                                         setBuyErr(validateBuyNowPrice(buyNowPrice, v));
                                     }}
-                                    placeholder="0"
+                                    onBlur={(e) => {
+                                        // If empty on blur, reset to "0"
+                                        if (e.target.value === "") setStartPrice("0");
+                                    }}
+                                    placeholder=""
                                     aria-invalid={Boolean(startErr)}
                                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
                                         } ${startErr ? "border-red-500" : ""}`}
@@ -1796,9 +1803,17 @@ function Sell({ dark, user, lots, setLots }) {
                                     inputMode="numeric"
                                     value={buyNowPrice}
                                     onChange={(e) => {
-                                        const v = e.target.value;
+                                        let v = e.target.value;
+                                        if (v.length > 1 && v.startsWith("0")) {
+                                            v = v.replace(/^0+/, ""); // remove all leading zeros
+                                            if (v === "") v = "0";
+                                        }
                                         setBuyNowPrice(v);
                                         setBuyErr(validateBuyNowPrice(v, startPrice));
+                                    }}
+                                    onBlur={(e) => {
+                                        // If empty on blur, reset to "0"
+                                        if (e.target.value === "") setBuyNowPrice("");
                                     }}
                                     placeholder="(optional)"
                                     aria-invalid={Boolean(buyErr)}
