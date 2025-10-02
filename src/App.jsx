@@ -1462,16 +1462,17 @@ function RequireAuth({ user, children }) {
     }
     return children;
 }
+
 function Sell({ dark, user, lots, setLots }) {
     const nav = useNavigate();
 
-    // --- Allowed options ---
-    const categoryOptions = ["Excavator", "Wheel loader", "Bulldozer", "Crane"]; // adjust as needed
+    // ----- Options -----
+    const categoryOptions = ["Excavator", "Wheel loader", "Bulldozer", "Crane"];
     const conditionOptions = ["Used", "New"];
     const defectsOptions = ["With defects", "Without defects"];
     const years = Array.from({ length: 2025 - 1900 + 1 }, (_, i) => 1900 + i).reverse();
 
-    // --- Form state ---
+    // ----- Form state -----
     const [title, setTitle] = React.useState("");
     const [category, setCategory] = React.useState(categoryOptions[0]);
     const [year, setYear] = React.useState(2015);
@@ -1484,24 +1485,34 @@ function Sell({ dark, user, lots, setLots }) {
     const [hours, setHours] = React.useState("");
 
     const [description, setDescription] = React.useState("");
-    const [documents, setDocuments] = React.useState(""); // newline or comma-separated
-    const [location, setLocation] = React.useState(""); // City, Country
-    const [photos, setPhotos] = React.useState(""); // each URL on new line
+    const [documents, setDocuments] = React.useState("");
+    const [location, setLocation] = React.useState("");
 
-    const [startPrice, setStartPrice] = React.useState(0);
+    // Prices as raw strings; live inline errors
+    const [startPrice, setStartPrice] = React.useState("0");
     const [buyNowPrice, setBuyNowPrice] = React.useState("");
-
-    const [error, setError] = React.useState("");
-    // inline errors
     const [startErr, setStartErr] = React.useState("");
     const [buyErr, setBuyErr] = React.useState("");
 
+    // Photos: device uploads
+    const [files, setFiles] = React.useState([]); // File[]
+    const [previews, setPreviews] = React.useState([]); // string[] (Object URLs)
+
+    // Top-level form error (non-price)
+    const [error, setError] = React.useState("");
+
+    // Cleanup all previews on unmount
+    React.useEffect(() => {
+        return () => {
+            previews.forEach((url) => URL.revokeObjectURL(url));
+        };
+    }, []); // only on unmount
+
+    // ----- Validation helpers -----
     const MIN = 250;
     const STEP = 50;
-
     const isMultipleOf50 = (n) => Number.isFinite(n) && n % STEP === 0;
 
-    // individual validators
     function validateStartPrice(v) {
         if (v === "" || v == null) return "Starting price is required.";
         const n = Number(v);
@@ -1522,12 +1533,31 @@ function Sell({ dark, user, lots, setLots }) {
         return "";
     }
 
-   
+    function handleFileChange(e) {
+        const list = Array.from(e.target.files || []);
+        const images = list.filter((f) => f.type.startsWith("image/"));
 
-    // show helper copy
-    const pricingHelp = "Minimum is \u20AC250, amounts increase in \u20AC50 steps (e.g. 250, 300, 350...).";
+        // Build URLs for new files only
+        const newUrls = images.map((f) => URL.createObjectURL(f));
 
-    function validate() {
+        // Append (don’t replace)
+        setFiles((prev) => [...prev, ...images]);
+        setPreviews((prev) => [...prev, ...newUrls]);
+
+        // Allow re-selecting the same file names
+        e.target.value = "";
+    }
+
+    function removePhoto(idx) {
+        setFiles((prev) => prev.filter((_, i) => i !== idx));
+        setPreviews((prev) => {
+            const url = prev[idx];
+            if (url) URL.revokeObjectURL(url);
+            return prev.filter((_, i) => i !== idx);
+        });
+    }
+
+    function validateFormOther() {
         if (!title.trim()) return "Please enter a machine name.";
         if (!categoryOptions.includes(category)) return "Choose a valid category.";
         const y = Number(year);
@@ -1535,73 +1565,59 @@ function Sell({ dark, user, lots, setLots }) {
         if (!conditionOptions.includes(condition)) return "Choose a valid condition.";
         if (!defectsOptions.includes(defects)) return "Choose a valid defects option.";
         if (!location.trim()) return "Please enter a location (e.g., Riga, Latvia).";
-
-        // Starting price: numeric, >= 250, multiple of 50
-        const sp = Number(startPrice);
-        if (!Number.isFinite(sp)) return "Starting price must be a number.";
-        if (sp < 250) return "Starting price must be at least  \u20AC250.";
-        if (sp % 50 !== 0) return "Starting price must increase in  \u20AC50 steps (e.g., 250, 300, 350...).";
-        // Buy now: optional, but if present must be numeric, >= 250, multiple of 50, and >= start
-        if (buyNowPrice !== "") {
-            const bp = Number(buyNowPrice);
-            if (!Number.isFinite(bp)) return "Buy now price must be a number.";
-            if (bp < 250) return "Buy now price must be at least \u20AC250.";
-            if (bp % 50 !== 0) return "Buy now price must increase in \u20AC50 steps (e.g., 250, 300, 350...).";
-            if (bp < sp) return "Buy now price must be greater than or equal to the starting price.";
-        }
-        // at least one photo URL
-        const photoList = photos.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean);
-        if (photoList.length === 0) return "Please add at least one photo URL.";
-
+        if (!previews || previews.length === 0) return "Please add at least one photo.";
         return "";
     }
 
     function onSubmit(e) {
         e.preventDefault();
-        const err = validate();
-        if (err) { setError(err); return; }
-        setError("");
+
+        // Re-run price validators
         const se = validateStartPrice(startPrice);
         const be = validateBuyNowPrice(buyNowPrice, startPrice);
         setStartErr(se);
         setBuyErr(be);
+        if (se || be) return;
+
+        // Other fields
+        const err = validateFormOther();
+        if (err) { setError(err); return; }
+        setError("");
 
         const sp = Number(startPrice);
         const bp = buyNowPrice === "" ? undefined : Number(buyNowPrice);
-        const photoList = photos.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean);
+
+        // Specs object (omit "-" / blanks)
+        const specs = {};
+        if (engine && engine !== "-") specs.engine = engine;
+        if (power && power !== "-") specs.power = power;
+        if (weight && weight !== "-") specs.weight = weight;
+
         const docList = documents.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean);
 
-        // Build new lot object matching your schema
         const newId = `NEW${Date.now().toString().slice(-6)}`;
-        const hasDefects = defects === "With defects";
-        const hrs = hours === "-" || hours === "" ? undefined : Number(hours);
-
-        const specsObj = {};
-        if (engine && engine !== "-") specsObj.engine = engine;
-        if (power && power !== "-") specsObj.power = power;
-        if (weight && weight !== "-") specsObj.weight = weight;
 
         const newLot = {
             id: newId,
             title: title.trim(),
             location: location.trim(), // "City, Country"
-            images: photoList,
+            images: previews.slice(), // use object URLs for MVP
             year: Number(year),
-            hours: hrs,
+            hours: hours === "-" || hours === "" ? undefined : Number(hours),
             condition,
-            hasDefects,
+            hasDefects: defects === "With defects",
             currentBid: sp,
             reserve: false,
             buyNow: bp,
-            endsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days from now
+            endsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
             category,
             seller: user?.email || "Seller",
-            specs: specsObj,
+            specs,
             description: description.trim(),
             documents: docList,
         };
 
-        setLots(prev => [newLot, ...prev]);
+        setLots((prev) => [newLot, ...prev]);
         nav(`/lot/${newId}`);
     }
 
@@ -1670,7 +1686,7 @@ function Sell({ dark, user, lots, setLots }) {
                         </div>
                     </div>
 
-                    {/* Specs (writable, '-' allowed) */}
+                    {/* Specs */}
                     <div>
                         <label className="text-xs font-medium block mb-2">Specifications</label>
                         <div className="grid sm:grid-cols-2 gap-4">
@@ -1708,22 +1724,49 @@ function Sell({ dark, user, lots, setLots }) {
                                 className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                             />
                         </div>
+
+                        {/* Photos */}
                         <div>
-                            <label className="text-xs font-medium">Photos (URL per line)</label>
-                            <textarea
-                                value={photos}
-                                onChange={(e) => setPhotos(e.target.value)}
-                                rows={3}
-                                placeholder="https://example.com/photo1.jpg\nhttps://example.com/photo2.jpg"
-                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            <label className="text-xs font-medium">Photos</label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={handleFileChange}
+                                className={`mt-1 block w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border file:bg-gray-50 ${dark ? "file:border-neutral-700 file:bg-neutral-800 file:text-white" : "file:border-gray-200"
+                                    }`}
                             />
+                            {previews.length > 0 && (
+                                <>
+                                    <div className={`mt-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                                        {previews.length} photo{previews.length > 1 ? "s" : ""} selected
+                                    </div>
+                                    <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                        {previews.map((url, i) => (
+                                            <div key={url} className="relative group">
+                                                <img src={url} alt={`photo-${i}`} className="w-full h-24 object-cover rounded-lg border" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removePhoto(i)}
+                                                    className="absolute top-1 right-1 text-xs px-2 py-1 rounded bg-black/60 text-white opacity-0 group-hover:opacity-100 transition"
+                                                    aria-label="Remove photo"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 
                     {/* Pricing */}
                     <div>
                         <label className="text-xs font-medium">Pricing</label>
-                        <div className={`mt-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>{pricingHelp}</div>
+                        <div className={`mt-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                            Minimum is {"\u20AC"}250. Amounts must increase in {"\u20AC"}50 steps (e.g., 250, 300, 350...).
+                        </div>
                         <div className="mt-2 grid sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="text-xs">Starting price (EUR)</label>
@@ -1731,13 +1774,11 @@ function Sell({ dark, user, lots, setLots }) {
                                     type="number"
                                     inputMode="numeric"
                                     value={startPrice}
-                                    // Starting price input onChange
                                     onChange={(e) => {
                                         const v = e.target.value;
                                         setStartPrice(v);
                                         setStartErr(validateStartPrice(v));
-                                    // re-validate buy now against the new start
-                                        setBuyErr(validateBuyNowPrice(buyNowPrice, v)); // re-check buyNow
+                                        setBuyErr(validateBuyNowPrice(buyNowPrice, v));
                                     }}
                                     placeholder="0"
                                     aria-invalid={Boolean(startErr)}
@@ -1757,7 +1798,7 @@ function Sell({ dark, user, lots, setLots }) {
                                     onChange={(e) => {
                                         const v = e.target.value;
                                         setBuyNowPrice(v);
-                                        setBuyErr(validateBuyNowPrice(v, startPrice)); // ?? live validation
+                                        setBuyErr(validateBuyNowPrice(v, startPrice));
                                     }}
                                     placeholder="(optional)"
                                     aria-invalid={Boolean(buyErr)}
@@ -1782,7 +1823,7 @@ function Sell({ dark, user, lots, setLots }) {
                         />
                     </div>
 
-                    {/* Error */}
+                    {/* Top-level error */}
                     {error && (
                         <div className={dark ? "text-red-300 text-sm" : "text-red-600 text-sm"}>{error}</div>
                     )}
@@ -1791,7 +1832,9 @@ function Sell({ dark, user, lots, setLots }) {
                     <div className="pt-2 flex gap-2">
                         <button
                             type="submit"
-                            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                            disabled={Boolean(startErr || buyErr)}
+                            className={`px-4 py-2 rounded-xl text-sm ${startErr || buyErr ? "bg-gray-300 text-gray-600 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 text-white"
+                                }`}
                         >
                             Create listing
                         </button>
@@ -1808,6 +1851,7 @@ function Sell({ dark, user, lots, setLots }) {
         </div>
     );
 }
+
 // ---- App root ----
 export default function App() {
     // Lots
