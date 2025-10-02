@@ -1492,6 +1492,35 @@ function Sell({ dark, user, lots, setLots }) {
     const [buyNowPrice, setBuyNowPrice] = React.useState("");
 
     const [error, setError] = React.useState("");
+    // inline errors
+    const [startErr, setStartErr] = React.useState("");
+    const [buyErr, setBuyErr] = React.useState("");
+
+    const MIN = 250;
+    const STEP = 50;
+
+    const isMultipleOf50 = (n) => Number.isFinite(n) && n % STEP === 0;
+
+    // individual validators
+    function validateStartPrice(v) {
+        if (v === "" || v == null) return "Starting price is required.";
+        const n = Number(v);
+        if (!Number.isFinite(n)) return "Starting price must be a number.";
+        if (n < MIN) return `Starting price must be at least \u20AC${MIN}.`;
+        if (!isMultipleOf50(n)) return "Starting price must increase in \u20AC50 steps (e.g., 250, 300, 350...).";
+        return "";
+    }
+
+    function validateBuyNowPrice(v, startV) {
+        if (v === "" || v == null) return ""; // optional
+        const n = Number(v);
+        const s = Number(startV);
+        if (!Number.isFinite(n)) return "Buy now price must be a number.";
+        if (n < MIN) return `Buy now price must be at least \u20AC${MIN}.`;
+        if (!isMultipleOf50(n)) return "Buy now price must increase in \u20AC50 steps (e.g., 250, 300, 350...).";
+        if (Number.isFinite(s) && n < s) return "Buy now price must be greater than or equal to the starting price.";
+        return "";
+    }
 
    
 
@@ -1532,6 +1561,10 @@ function Sell({ dark, user, lots, setLots }) {
         const err = validate();
         if (err) { setError(err); return; }
         setError("");
+        const se = validateStartPrice(startPrice);
+        const be = validateBuyNowPrice(buyNowPrice, startPrice);
+        setStartErr(se);
+        setBuyErr(be);
 
         const sp = Number(startPrice);
         const bp = buyNowPrice === "" ? undefined : Number(buyNowPrice);
@@ -1698,9 +1731,22 @@ function Sell({ dark, user, lots, setLots }) {
                                     type="number"
                                     inputMode="numeric"
                                     value={startPrice}
-                                    onChange={(e) => setStartPrice(e.target.value)}
-                                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                                    // Starting price input onChange
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        setStartPrice(v);
+                                        setStartErr(validateStartPrice(v));
+                                    // re-validate buy now against the new start
+                                        setBuyErr(validateBuyNowPrice(buyNowPrice, v)); // re-check buyNow
+                                    }}
+                                    placeholder="0"
+                                    aria-invalid={Boolean(startErr)}
+                                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
+                                        } ${startErr ? "border-red-500" : ""}`}
                                 />
+                                {startErr && (
+                                    <p className={`mt-1 text-xs ${dark ? "text-red-300" : "text-red-600"}`}>{startErr}</p>
+                                )}
                             </div>
                             <div>
                                 <label className="text-xs">Buy now price (EUR, optional)</label>
@@ -1708,10 +1754,19 @@ function Sell({ dark, user, lots, setLots }) {
                                     type="number"
                                     inputMode="numeric"
                                     value={buyNowPrice}
-                                    onChange={(e) => setBuyNowPrice(e.target.value)}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        setBuyNowPrice(v);
+                                        setBuyErr(validateBuyNowPrice(v, startPrice)); // ?? live validation
+                                    }}
                                     placeholder="(optional)"
-                                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                                    aria-invalid={Boolean(buyErr)}
+                                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
+                                        } ${buyErr ? "border-red-500" : ""}`}
                                 />
+                                {buyErr && (
+                                    <p className={`mt-1 text-xs ${dark ? "text-red-300" : "text-red-600"}`}>{buyErr}</p>
+                                )}
                             </div>
                         </div>
                     </div>
