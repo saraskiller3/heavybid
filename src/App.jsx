@@ -148,10 +148,15 @@ function prettyLeft(iso) {
 function Header({ query, setQuery, dark, setDark, user, setUser }) {
     const navigate = useNavigate();
     const location = useLocation();
+    const fromForHeader = location.pathname.startsWith("/lot/")
+        ? location                  // return to that lot
+        : location.pathname === "/sell"
+            ? "/sell"                   // return to sell
+            : "/";                      // otherwise home
     const isHome = location.pathname === "/";
     return (
         <header
-            className={`sticky top-0 z-30 border-b ${dark ? "bg-neutral-900/80 text-white" : "bg-white/80"
+            className={`sticky top-0 z-[9999] border-b ${dark ? "bg-neutral-900/80 text-white" : "bg-white/80"
                 } backdrop-blur supports-[backdrop-filter]:bg-white/60`}
         >
             <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
@@ -165,7 +170,7 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
 
                 <div className="mr-auto">
                     <div className="text-xl font-extrabold leading-5">HeavyBid</div>
-                    <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>
+                    <div className={`text-xs ${dark ? "text-white" : "text-gray-500"}`}>
                         Heavy machinery auctions {"\u00B7"} EU
                     </div>
                 </div>
@@ -208,7 +213,7 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                 ) : (
                     <Link
                             to="/signin"
-                            state={{ from: location }}
+                            state={{ from: "/sell" }}
                         className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-sm"
                     >
                         Sell equipment
@@ -239,7 +244,7 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                     <>
                         <Link
                                 to="/signin"
-                                state={{ from: "/" }}
+                                state={{ from: fromForHeader }}
                             className={`px-3 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""
                                 }`}
                         >
@@ -247,7 +252,7 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                         </Link>
                         <Link
                                 to="/signup"
-                                state={{ from: "/" }}
+                                state={{ from: fromForHeader }}
                             className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm"
                         >
                             Sign up
@@ -649,6 +654,26 @@ function Home({
         if (sortBy === "priceLow") out = out.slice().sort((a, b) => a.currentBid - b.currentBid);
         return out;
     }, [baseFiltered, country, category, condition, defects, sortBy]);
+    // --- Pagination ---
+    const [pageSize, setPageSize] = React.useState(12); // 12 | 28 | 56
+    const [page, setPage] = React.useState(1);
+
+    // Reset to first page when filters change
+    React.useEffect(() => {
+        setPage(1);
+    }, [query, category, sortBy]);
+
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    // Clamp page if data shrinks
+    React.useEffect(() => {
+        if (page > totalPages) setPage(totalPages);
+    }, [page, totalPages]);
+
+    const start = (page - 1) * pageSize;
+    const end = Math.min(start + pageSize, total);
+    const pageLots = filtered.slice(start, end);
 
     // …return markup (your existing JSX is fine) …
     // Just make sure you pass the new props down to <Filters /> below:
@@ -685,7 +710,7 @@ function Home({
                 <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-2xl font-semibold">Live auctions</h2>
                     <span className={`text-sm ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                        {filtered.length} results
+                        {total === 0 ? "0 results" : `Showing ${start + 1}–${end} of ${total} results`}
                     </span>
                 </div>
 
@@ -695,7 +720,7 @@ function Home({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <AnimatePresence>
-                        {filtered.map((l) => (
+                        {pageLots.map((l) => (
                             <Motion.div
                                 key={l.id}
                                 initial={{ opacity: 0, y: 10 }}
@@ -722,6 +747,63 @@ function Home({
                         </button>
                     </Motion.div>
                 )}
+                {/* Pager controls */}
+                <div className="mt-6 flex flex-col sm:flex-row items-center gap-3 sm:justify-between">
+                    {/* Results per page */}
+                    <div className="flex items-center gap-2">
+                        <label className={`text-sm ${dark ? "text-neutral-400" : "text-gray-600"}`}>Results per page</label>
+                        <select
+                            value={pageSize}
+                            onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                            className={`border rounded-lg px-2 py-1 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                        >
+                            <option value={12}>12</option>
+                            <option value={28}>28</option>
+                            <option value={56}>56</option>
+                        </select>
+                    </div>
+
+                    {/* Page buttons */}
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setPage(1)}
+                            disabled={page <= 1}
+                            className={`px-3 py-1 rounded-lg border text-sm ${page <= 1 ? "opacity-50 cursor-not-allowed" : ""} ${dark ? "border-neutral-700" : ""}`}
+                            aria-label="First page"
+                        >
+                            « First
+                        </button>
+                        <button
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                            disabled={page <= 1}
+                            className={`px-3 py-1 rounded-lg border text-sm ${page <= 1 ? "opacity-50 cursor-not-allowed" : ""} ${dark ? "border-neutral-700" : ""}`}
+                            aria-label="Previous page"
+                        >
+                            ‹ Prev
+                        </button>
+
+                        <span className={`text-sm ${dark ? "text-neutral-300" : "text-gray-700"}`}>
+                            Page {page} of {totalPages}
+                        </span>
+
+                        <button
+                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={page >= totalPages}
+                            className={`px-3 py-1 rounded-lg border text-sm ${page >= totalPages ? "opacity-50 cursor-not-allowed" : ""} ${dark ? "border-neutral-700" : ""}`}
+                            aria-label="Next page"
+                        >
+                            Next ›
+                        </button>
+                        <button
+                            onClick={() => setPage(totalPages)}
+                            disabled={page >= totalPages}
+                            className={`px-3 py-1 rounded-lg border text-sm ${page >= totalPages ? "opacity-50 cursor-not-allowed" : ""} ${dark ? "border-neutral-700" : ""}`}
+                            aria-label="Last page"
+                        >
+                            Last »
+                        </button>
+                    </div>
+                </div>
             </section>
         </main>
     );
@@ -1267,6 +1349,10 @@ function SignUp({ dark, setUser }) {
     const [password, setPassword] = React.useState("");
     const [confirm, setConfirm] = React.useState("");
     const [error, setError] = React.useState("");
+    const location = useLocation();
+    const rawFrom = location.state?.from;
+    const from = typeof rawFrom === "string" ? rawFrom : rawFrom?.pathname || "/";
+
 
     const onSubmit = (e) => {
         e.preventDefault();
@@ -1278,7 +1364,7 @@ function SignUp({ dark, setUser }) {
 
         // mock 'create account'
         setUser({ email });
-        nav("/"); // go to home (or wherever you want)
+        nav(from, { replace: true });
     };
 
     return (
@@ -1335,7 +1421,7 @@ function SignUp({ dark, setUser }) {
                 </form>
 
                 <div className={`mt-6 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                    Already have an account? <Link to="/signin" className="underline">Sign in</Link>
+                    Already have an account? <Link to="/signin" state={{ from }} className="underline">Sign in</Link>
                 </div>
             </div>
         </div>
@@ -1349,7 +1435,8 @@ function SignIn({ dark, setUser }) {
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState("");
     const location = useLocation();
-    const from = location.state?.from?.pathname || "/"
+    const rawFrom = location.state?.from;
+    const from = typeof rawFrom === "string" ? rawFrom : rawFrom?.pathname || "/";
 
     const validate = () => {
         if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) return "Please enter a valid email.";
@@ -1446,7 +1533,7 @@ function SignIn({ dark, setUser }) {
                 </form>
 
                 <div className={`mt-6 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                    Don't have an account? <Link to="/signup" className="underline">Sign up</Link>
+                    Don't have an account? <Link to="/signup" state={{ from }} className="underline">Sign up</Link>
                 </div>
             </div>
         </div>
