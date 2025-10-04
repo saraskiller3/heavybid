@@ -12,6 +12,7 @@ import { Search, Clock, MapPin, Sun, Moon, ChevronLeft, CheckCircle2, Mail, Lock
 const MOCK_LISTINGS = [
     {
         id: "EX2001",
+        type: "auction",
         title: "2014 Komatsu PC210-8 Excavator",
         location: "Riga, Latvia",
         coords: { lat: 56.9496, lng: 24.1052 },
@@ -36,6 +37,7 @@ const MOCK_LISTINGS = [
     },
     {
         id: "WL453",
+        type: "auction",
         title: "2018 Volvo L120 Wheel Loader",
         location: "Vilnius, Lithuania",
         coords: { lat: 54.6872, lng: 25.2797 },
@@ -60,6 +62,7 @@ const MOCK_LISTINGS = [
     },
     {
         id: "CR300",
+        type: "auction",
         title: "2016 Caterpillar D6 Bulldozer",
         location: "Tallinn, Estonia",
         coords: { lat: 59.4370, lng: 24.7536 },
@@ -83,6 +86,7 @@ const MOCK_LISTINGS = [
     },
     {
         id: "TR555",
+        type: "auction",
         title: "Hadrian X bricklayer",
         location: "Berlin, Germany",
         coords: { lat: 52.5200, lng: 13.4050 }, 
@@ -98,34 +102,43 @@ const MOCK_LISTINGS = [
         currentBid: 3000000,
         reserve: false,
         buyNow: 4000000,
-        endsAt: new Date(Date.now() + 13 * 24 * 60 * 60 * 1000).toISOString(),
+        endsAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Miscellaneous",
         seller: "FBR",
         specs: { weight: "23,000 kg", engine: "Volvo 555", power: "250 kW" },
         description: "Brand new, factory warranty, new in Europe",
         documents: ["CE certificate", "Inspection report", "Customs clearance", "5 year factory warranty"],
     },
+    {
+        id: "FS1001",
+        type: "sale",                    // ?? fixed-price listing
+        title: "2020 JCB 3CX Backhoe Loader",
+        location: "Alytus, Lithuania",
+        coords: { lat: 54.3964, lng: 24.0349 },
+        images: [
+            "/images/jcb/img1.jpg",
+            "/images/jcb/img2.jpg",
+            "/images/jcb/img3.jpg",
+        ],
+        year: 2020,
+        hours: 3200,
+        condition: "Used",
+        hasDefects: false,
+        askingPrice: 48000,              // ?? price for sale
+        endsAt: null,                    // no countdown
+        category: "Backhoe",
+        seller: "UAB Forestas",
+        specs: { engine: "JCB 444", power: "68 kW", weight: "8,000 kg" },
+        description: "Clean 3CX, quick coupler, 4-in-1 bucket.",
+        documents: ["CE certificate"],
+    },
+
 
 ];
 
-// Build your custom step sequence up to a given max
-function buildPriceSteps(max) {
-    const steps = [0, 150, 300, 500];
-    const pushRange = (start, end, step) => { for (let v = start; v <= end; v += step) steps.push(v); };
-    pushRange(1000, 3000, 500);     // 1000..3000 by 500
-    pushRange(4000, 5000, 1000);    // 4k, 5k
-    pushRange(6000, 15000, 1000);   // 6k..15k by 1k
-    pushRange(17500, 30000, 2500);  // 17.5k..30k by 2.5k
-    pushRange(35000, 50000, 5000);  // 35k..50k by 5k
-    pushRange(60000, 100000, 10000);// 60k..100k by 10k
-    let v = 120000; while (v <= max) { steps.push(v); v += 20000; }
-    if (steps[steps.length - 1] < max) steps.push(max);
-    return Array.from(new Set(steps)).sort((a, b) => a - b);
-}
-
 
 function formatCurrency(n) { return new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(n); }
-function msLeft(iso) { return new Date(iso) - new Date(); }
+
 function pad2(n) {
     const s = Math.floor(Math.max(0, n)).toString();
     return s.length === 1 ? "0" + s : s;
@@ -276,7 +289,7 @@ function Filters({
     conditions, condition, setCondition, conditionCounts,
     defectsList, defects, setDefects, defectsCounts,
     // price
-    priceSteps, priceMin, priceMax, setPriceMin, setPriceMax,
+    priceSteps, priceMin, priceMax, setPriceMin, setPriceMax, listingType, setListingType
 }) {
     const Count = ({ map }) => Array.from(map.values()).reduce((a, b) => a + b, 0);
 
@@ -313,7 +326,19 @@ function Filters({
                     ))}
                 </select>
             </div>
-
+            {/* Listing Type (new) */}
+            <div className="mt-4">
+                <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Listing Type</label>
+                <select
+                    value={listingType}
+                    onChange={(e) => setListingType(e.target.value)}
+                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                >
+                    <option value="All">All</option>
+                    <option value="auction">Auctions</option>
+                    <option value="sale">For sale</option>
+                </select>
+            </div>
             {/* Condition */}
             <div className="mt-4">
                 <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Condition</label>
@@ -438,6 +463,7 @@ function FactPill({ label, value, dark }) {
 }
 
 function Card({ lot, dark }) {
+    const kind = lot.type || "auction"; // default to auction if missing
     return (
         <Link to={`/lot/${lot.id}`}>
             <Motion.article
@@ -463,7 +489,13 @@ function Card({ lot, dark }) {
                         className={`absolute top-3 right-3 px-2 py-1 rounded-md text-xs flex items-center gap-1 ${dark ? "bg-neutral-800/90" : "bg-white/90"
                             }`}
                     >
-                        <Clock size={14} /> {prettyLeft(lot.endsAt)}
+                        {kind === "auction" ? (
+                            <>
+                                <Clock size={14} /> {prettyLeft(lot.endsAt)}
+                            </>
+                        ) : (
+                            <>For sale</>
+                        )}
                     </div>
                 </div>
 
@@ -489,6 +521,8 @@ function Card({ lot, dark }) {
 
                     {/* Bids */}
                     <div className="mt-4 grid grid-cols-2 gap-3">
+                        {kind === "auction" ? (
+                            <>
                         <div
                             className={`rounded-xl border p-3 ${dark ? "bg-neutral-800 border-neutral-700" : "bg-gray-50"
                                 }`}
@@ -506,7 +540,14 @@ function Card({ lot, dark }) {
                                 Buy now
                             </div>
                             <div className="text-xl font-semibold">{formatCurrency(lot.buyNow)}</div>
-                        </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className={`col-span-2 rounded-xl border p-3 ${dark ? "bg-neutral-800 border-neutral-700" : "bg-gray-50"}`}>
+                                <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>Asking price</div>
+                                <div className="text-xl font-bold">{formatCurrency(lot.askingPrice)}</div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </Motion.article>
@@ -514,9 +555,45 @@ function Card({ lot, dark }) {
     );
 }
 
+// Derive country from "City, Country"
 function getCountry(location = "") {
-    const parts = location.split(",").map(s => s.trim());
-    return parts[parts.length - 1] || "";
+    const parts = String(location).split(",").map(s => s.trim()).filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : "Unknown";
+}
+
+// Return a numeric price for filtering/sorting depending on listing type
+function listingPrice(l) {
+    // auction -> currentBid; sale -> askingPrice; fallback 0
+    if ((l.type || "auction") === "auction") return Number(l.currentBid ?? 0);
+    return Number(l.askingPrice ?? 0);
+}
+function buildPriceSteps(max) {
+    const s = new Set([0]); // use a Set to avoid duplicates
+
+    const add = (start, end, step) => {
+        const hi = Math.min(end, max);
+        for (let v = start; v <= hi; v += step) s.add(v);
+    };
+
+    // Gradual bands; overlaps are fine because Set dedupes
+    add(150, 2000, 150);
+    add(2000, 10000, 500);
+    add(10000, 20000, 2500);
+    add(20000, 50000, 5000);
+    add(50000, 100000, 10000);
+    add(100000, 1000000, 50000);
+    add(1000000, max, 100000);
+
+    // Ensure exact max is present
+    s.add(max);
+
+    // Return unique, sorted ascending
+    return Array.from(s).sort((a, b) => a - b);
+}
+// Safe time compare: put null/invalid to the end
+function endsAtTime(l) {
+    const t = l?.endsAt ? new Date(l.endsAt).getTime() : NaN;
+    return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
 }
 
 // ---- Pages ----
@@ -527,17 +604,26 @@ function Home({
     defects, setDefects,
     priceSteps, priceMin, priceMax, setPriceMin, setPriceMax
 }) {
+    const [listingType, setListingType] = React.useState("All"); // All | auction | sale
     const [_tick, setTick] = useState(0);
     useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 1000); return () => clearInterval(t); }, []);
-
+   
     // Base list: only text + price filters
     const baseFiltered = useMemo(() => {
         let out = lots.filter((l) =>
             `${l.title} ${l.location} ${l.seller}`.toLowerCase().includes(query.toLowerCase())
         );
-        out = out.filter((l) => l.currentBid >= priceMin && l.currentBid <= priceMax);
+        if (listingType !== "All") {
+            out = out.filter((l) => (l.type || "auction") === listingType);
+        }
+        out = out.filter((l) => {
+            const p = listingPrice(l);
+            return p >= priceMin && p <= priceMax;
+        });
+
         return out;
-    }, [lots, query, priceMin, priceMax]);
+    }, [lots, query, priceMin, priceMax, listingType ]);
+    
 
 
     // Build a source set based on all current selections EXCEPT the dimension we’re counting
@@ -649,9 +735,15 @@ function Home({
         if (condition !== "All") out = out.filter(l => l.condition === condition);
         if (defects !== "All") out = out.filter(l => (l.hasDefects ? "With defects" : "Without defects") === defects);
 
-        if (sortBy === "endingSoon") out = out.slice().sort((a, b) => msLeft(a.endsAt) - msLeft(b.endsAt));
-        if (sortBy === "priceHigh") out = out.slice().sort((a, b) => b.currentBid - a.currentBid);
-        if (sortBy === "priceLow") out = out.slice().sort((a, b) => a.currentBid - b.currentBid);
+        if (sortBy === "endingSoon") {
+            out = out.slice().sort((a, b) => endsAtTime(a) - endsAtTime(b));
+        }
+        if (sortBy === "priceHigh") {
+            out = out.slice().sort((a, b) => listingPrice(b) - listingPrice(a));
+        }
+        if (sortBy === "priceLow") {
+            out = out.slice().sort((a, b) => listingPrice(a) - listingPrice(b));
+        }
         return out;
     }, [baseFiltered, country, category, condition, defects, sortBy]);
     // --- Pagination ---
@@ -661,7 +753,7 @@ function Home({
     // Reset to first page when filters change
     React.useEffect(() => {
         setPage(1);
-    }, [query, category, sortBy]);
+    }, [query, category, sortBy, listingType, country, condition, defects, priceMin, priceMax, pageSize]);
 
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -674,6 +766,7 @@ function Home({
     const start = (page - 1) * pageSize;
     const end = Math.min(start + pageSize, total);
     const pageLots = filtered.slice(start, end);
+
 
     // …return markup (your existing JSX is fine) …
     // Just make sure you pass the new props down to <Filters /> below:
@@ -703,14 +796,16 @@ function Home({
                     priceMax={priceMax}
                     setPriceMin={setPriceMin}
                     setPriceMax={setPriceMax}
+                    listingType={listingType}
+                    setListingType={setListingType}
                 />
             </aside>
 
             <section className="md:col-span-3">
                 <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-2xl font-semibold">Live auctions</h2>
+                    <h2 className="text-2xl font-semibold">Live listings</h2>
                     <span className={`text-sm ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                        {total === 0 ? "0 results" : `Showing ${start + 1}–${end} of ${total} results`}
+                        {total === 0 ? "0 results" : `Showing ${start + 1}-${end} of ${total} results`}
                     </span>
                 </div>
 
@@ -771,7 +866,7 @@ function Home({
                             className={`px-3 py-1 rounded-lg border text-sm ${page <= 1 ? "opacity-50 cursor-not-allowed" : ""} ${dark ? "border-neutral-700" : ""}`}
                             aria-label="First page"
                         >
-                            « First
+                            {"<< First"}
                         </button>
                         <button
                             onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -779,7 +874,7 @@ function Home({
                             className={`px-3 py-1 rounded-lg border text-sm ${page <= 1 ? "opacity-50 cursor-not-allowed" : ""} ${dark ? "border-neutral-700" : ""}`}
                             aria-label="Previous page"
                         >
-                            ‹ Prev
+                            {"< Prev"}
                         </button>
 
                         <span className={`text-sm ${dark ? "text-neutral-300" : "text-gray-700"}`}>
@@ -792,7 +887,7 @@ function Home({
                             className={`px-3 py-1 rounded-lg border text-sm ${page >= totalPages ? "opacity-50 cursor-not-allowed" : ""} ${dark ? "border-neutral-700" : ""}`}
                             aria-label="Next page"
                         >
-                            Next ›
+                            {"Next >>"}
                         </button>
                         <button
                             onClick={() => setPage(totalPages)}
@@ -800,7 +895,7 @@ function Home({
                             className={`px-3 py-1 rounded-lg border text-sm ${page >= totalPages ? "opacity-50 cursor-not-allowed" : ""} ${dark ? "border-neutral-700" : ""}`}
                             aria-label="Last page"
                         >
-                            Last »
+                            {"Last >>"}
                         </button>
                     </div>
                 </div>
@@ -1075,6 +1170,7 @@ function LotDetail({ lots, setLots, dark, user }) {
     const nav = useNavigate();
     const lot = lots.find((l) => l.id === id);
     const location = useLocation();
+    const isAuction = (lot?.type || "auction") === "auction";
 
     // Hooks must always be at the top (no conditionals)
     const [_tick, setTick] = useState(0); // just to re-render countdown each second
@@ -1185,6 +1281,7 @@ function LotDetail({ lots, setLots, dark, user }) {
                         <MapPin size={14} /> {lot.location} {" \u00B7 "} {lot.seller}
 
                     </p>
+                    
                     <div className="mt-2 flex gap-2">
                            <span className={`text-[11px] px-2 py-1 rounded-lg border ${+     lot.hasDefects
                                        ? (dark ? "border-red-700 text-red-300 bg-red-900/20" : "border-red-200 text-red-700 bg-red-50")
@@ -1248,7 +1345,8 @@ function LotDetail({ lots, setLots, dark, user }) {
                     </div>
 
 
-
+                    {isAuction ? (
+                        <>
                     <div className="mt-4 grid grid-cols-2 gap-3">
                         <div className={`rounded-xl border p-3 ${dark ? "bg-neutral-800 border-neutral-700" : "bg-gray-50"}`}>
                             <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>Current bid</div>
@@ -1287,7 +1385,7 @@ function LotDetail({ lots, setLots, dark, user }) {
                             Minimum bid is {"\u20AC"}{MIN_BID}. Bids increase in {"\u20AC"}{STEP} steps (e.g. 250, 300, 350). Your bid must be higher than the current bid.
                         </p>
                         
-                        {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+                                {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
 
                         {/* Signed-out notice */}
                         {!user && (
@@ -1321,11 +1419,29 @@ function LotDetail({ lots, setLots, dark, user }) {
                                 </button>
                             </div>
                         )}
-                    </div>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            {/* For-sale UI */}
+                            <div className={`mt-4 rounded-xl border p-3 ${dark ? "bg-neutral-800 border-neutral-700" : "bg-gray-50"}`}>
+                                <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>Asking price</div>
+                                <div className="text-2xl font-bold">{formatCurrency(lot.askingPrice)}</div>
+                            </div>
+
+                            <div className="mt-4">
+                                <button
+                                    className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                                    onClick={() => alert("Contact seller (mock)")}
+                                >
+                                    Contact seller
+                                </button>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
-            {/* (Keep your specs/description here) */}
 
             {/* Lightbox overlay */}
             {lightbox && (
@@ -1586,6 +1702,7 @@ function Sell({ dark, user, lots, setLots }) {
 
     // Top-level form error (non-price)
     const [error, setError] = React.useState("");
+    const [listingType, setListingType] = React.useState("auction"); // "auction" | "sale"
 
     // Cleanup all previews on unmount
     React.useEffect(() => {
@@ -1682,8 +1799,7 @@ function Sell({ dark, user, lots, setLots }) {
         const docList = documents.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean);
 
         const newId = `NEW${Date.now().toString().slice(-6)}`;
-
-        const newLot = {
+        const base = {
             id: newId,
             title: title.trim(),
             location: location.trim(), // "City, Country"
@@ -1692,16 +1808,16 @@ function Sell({ dark, user, lots, setLots }) {
             hours: hours === "-" || hours === "" ? undefined : Number(hours),
             condition,
             hasDefects: defects === "With defects",
-            currentBid: sp,
-            reserve: false,
-            buyNow: bp,
-            endsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
             category,
             seller: user?.email || "Seller",
             specs,
             description: description.trim(),
             documents: docList,
         };
+        const newLot = listingType === "auction" ? {
+            ...base, type: "auction", currentBid: sp, buyNow: bp, endsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+        } 
+            : { ...base, type: "sale", askingPrice: sp, endsAt:null };
 
         setLots((prev) => [newLot, ...prev]);
         nav(`/lot/${newId}`);
@@ -1716,6 +1832,17 @@ function Sell({ dark, user, lots, setLots }) {
                 </p>
 
                 <form className="mt-6 space-y-6" onSubmit={onSubmit}>
+                    <div>
+                        <label className="text-xs font-medium">Listing type</label>
+                        <select
+                            value={listingType}
+                            onChange={(e) => setListingType(e.target.value)}
+                            className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                        >
+                            <option value="auction">Auction</option>
+                            <option value="sale">For sale</option>
+                        </select>
+                    </div>
                     {/* Basic */}
                     <div className="grid sm:grid-cols-2 gap-4">
                         <div>
@@ -1985,15 +2112,15 @@ export default function App() {
 
 
     // Compute max bid and steps (always yields at least [0, max])
-    const maxCurrentBid = useMemo(
-        () => Math.max(0, ...lots.map((l) => l.currentBid)),
+    const maxPrice = useMemo(
+        () => Math.max(0, ...lots.map(listingPrice)),
         [lots]
     );
 
     const priceSteps = useMemo(() => {
-        const steps = buildPriceSteps(maxCurrentBid);
-        return steps.length ? steps : [0, maxCurrentBid];
-    }, [maxCurrentBid]);
+        const steps = buildPriceSteps(maxPrice);
+        return steps.length ? steps : [0, maxPrice];
+    }, [maxPrice]);
 
     // ? Initialize AFTER steps exist; update if steps change
     const [priceMin, setPriceMin] = useState(0);
@@ -2001,7 +2128,10 @@ export default function App() {
     useEffect(() => {
         if (priceSteps.length) setPriceMax(priceSteps[priceSteps.length - 1]);
     }, [priceSteps]);
-
+    // optional: clamp min if it ends up above the new max
+    useEffect(() => {
+        if (priceMin > priceMax) setPriceMin(priceMax);
+    }, [priceMin, priceMax]);
     useEffect(() => {
         document.documentElement.classList.toggle("dark", dark);
     }, [dark]);
