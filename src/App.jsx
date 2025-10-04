@@ -27,7 +27,7 @@ const MOCK_LISTINGS = [
         hasDefects: false,
         currentBid: 28000,
         reserve: true,
-        buyNow: 34000,
+        reservePrice: 34000,
         endsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Excavator",
         seller: "Baltic Machinery O\u00DC",
@@ -52,7 +52,7 @@ const MOCK_LISTINGS = [
         hasDefects: true,
         currentBid: 42000,
         reserve: false,
-        buyNow: 52000,
+        reservePrice: 52000,
         endsAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Wheel loader",
         seller: "Nordic Plant",
@@ -75,8 +75,8 @@ const MOCK_LISTINGS = [
         condition: "Used",
         hasDefects: false,
         currentBid: 65000,
-        reserve: true,
-        buyNow: 78000,
+        reserve: false,
+        reservePrice: 78000,
         endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Bulldozer",
         seller: "Estonian Earthworks",
@@ -101,7 +101,7 @@ const MOCK_LISTINGS = [
         hasDefects: false,
         currentBid: 3000000,
         reserve: false,
-        buyNow: 4000000,
+        reservePrice: 4000000,
         endsAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Miscellaneous",
         seller: "FBR",
@@ -136,6 +136,11 @@ const MOCK_LISTINGS = [
 
 ];
 
+function reserveInfo(lot) {
+    const has = typeof lot?.reservePrice === "number" && Number.isFinite(lot.reservePrice);
+    const met = has ? Number(lot.currentBid ?? 0) >= lot.reservePrice : false;
+    return { has, met };
+}
 
 function formatCurrency(n) { return new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(n); }
 
@@ -464,6 +469,7 @@ function FactPill({ label, value, dark }) {
 
 function Card({ lot, dark }) {
     const kind = lot.type || "auction"; // default to auction if missing
+    const { has, met } = reserveInfo(lot);
     return (
         <Link to={`/lot/${lot.id}`}>
             <Motion.article
@@ -531,16 +537,20 @@ function Card({ lot, dark }) {
                                 Current bid
                             </div>
                             <div className="text-xl font-bold">{formatCurrency(lot.currentBid)}</div>
-                        </div>
+                                </div>
+                                {has && met ? (
                         <div
                             className={`rounded-xl border p-3 text-right ${dark ? "bg-neutral-800 border-neutral-700" : "bg-gray-50"
                                 }`}
                         >
                             <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>
-                                Buy now
+                                Reserve
                             </div>
-                            <div className="text-xl font-semibold">{formatCurrency(lot.buyNow)}</div>
-                                </div>
+                            <div className="text-xl font-semibold">{formatCurrency(lot.reservePrice)}</div>
+                                    </div>
+                                ) : (
+                                    <div />
+                                )}
                             </>
                         ) : (
                             <div className={`col-span-2 rounded-xl border p-3 ${dark ? "bg-neutral-800 border-neutral-700" : "bg-gray-50"}`}>
@@ -1171,6 +1181,12 @@ function LotDetail({ lots, setLots, dark, user }) {
     const lot = lots.find((l) => l.id === id);
     const location = useLocation();
     const isAuction = (lot?.type || "auction") === "auction";
+    // Reserve flags — compute once (ABOVE the return, not inside JSX)
+    const hasReserve =
+        typeof lot?.reservePrice === "number" && Number.isFinite(lot.reservePrice);
+    const reserveMet =
+        hasReserve && Number(lot.currentBid ?? 0) >= lot.reservePrice;
+    
 
     // Hooks must always be at the top (no conditionals)
     const [_tick, setTick] = useState(0); // just to re-render countdown each second
@@ -1283,7 +1299,7 @@ function LotDetail({ lots, setLots, dark, user }) {
                     </p>
                     
                     <div className="mt-2 flex gap-2">
-                           <span className={`text-[11px] px-2 py-1 rounded-lg border ${+     lot.hasDefects
+                        <span className={`text-[11px] px-2 py-1 rounded-lg border ${lot.hasDefects
                                        ? (dark ? "border-red-700 text-red-300 bg-red-900/20" : "border-red-200 text-red-700 bg-red-50")
                                    : (dark ? "border-green-700 text-green-300 bg-green-900/20" : "border-green-200 text-green-700 bg-green-50")
                                }`}>
@@ -1351,16 +1367,27 @@ function LotDetail({ lots, setLots, dark, user }) {
                         <div className={`rounded-xl border p-3 ${dark ? "bg-neutral-800 border-neutral-700" : "bg-gray-50"}`}>
                             <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>Current bid</div>
                             <div className="text-xl font-bold">{formatCurrency(lot.currentBid)}</div>
-                        </div>
-                        <div className={`rounded-xl border p-3 text-right ${dark ? "bg-neutral-800 border-neutral-700" : "bg-gray-50"}`}>
-                            <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>Buy now</div>
-                            <div className="text-xl font-semibold">{formatCurrency(lot.buyNow)}</div>
-                        </div>
-                    </div>
+                                </div>
 
+                        <div className={`rounded-xl border p-3 text-right ${dark ? "bg-neutral-800 border-neutral-700" : "bg-gray-50"}`}>
+                                    <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>Reserve</div>
+                                    {!hasReserve ? (
+                                        <div className="text-xl font-semibold">-</div>
+                                    ) : reserveMet ? (
+                                            <div className="text-lg font-semibold inline-flex items-center gap-1">
+                                              <CheckCircle2 size={16} />
+                                                  {formatCurrency(lot.reservePrice)} 
+                            </div>
+                                    ) : (
+                                        <div className="text-lg font-semibold">Not met</div>
+               
+                                    )}
+                                </div>
+                            </div>
+                            
                     <div className={`mt-3 inline-flex items-center gap-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
                         <Clock size={14} /> Ends in {prettyLeft(lot.endsAt)}
-                        {lot.reserve && <span className="inline-flex items-center gap-1 ml-2"><CheckCircle2 size={14} /> Reserve</span>}
+                        
                     </div>
 
                     {/* Bidding UI */}
@@ -1411,12 +1438,7 @@ function LotDetail({ lots, setLots, dark, user }) {
                                 >
                                     Place bid
                                 </button>
-                                <button
-                                    className="py-2 px-3 rounded-xl border"
-                                    onClick={() => alert("Buy now (mock)")}
-                                >
-                                    Buy now
-                                </button>
+                                
                             </div>
                         )}
                             </div>
@@ -1669,7 +1691,7 @@ function Sell({ dark, user, lots, setLots }) {
     const nav = useNavigate();
 
     // ----- Options -----
-    const categoryOptions = ["Excavator", "Wheel loader", "Bulldozer", "Crane"];
+    const categoryOptions = ["Excavator", "Wheel loader", "Bulldozer", "Crane", "Backhoe", "Truck", "Tractor", "Grader", "Roller", "Forestry", "Forklift", "Telescopic handler", "Cherry picker", "Asphalt paver", "Miscellaneous"];
     const conditionOptions = ["Used", "New"];
     const defectsOptions = ["With defects", "Without defects"];
     const years = Array.from({ length: 2025 - 1900 + 1 }, (_, i) => 1900 + i).reverse();
@@ -1692,9 +1714,9 @@ function Sell({ dark, user, lots, setLots }) {
 
     // Prices as raw strings; live inline errors
     const [startPrice, setStartPrice] = React.useState("0");
-    const [buyNowPrice, setBuyNowPrice] = React.useState("");
+    const [reservePrice, setReservePrice] = React.useState("");
     const [startErr, setStartErr] = React.useState("");
-    const [buyErr, setBuyErr] = React.useState("");
+    const [reserveErr, setReserveErr] = React.useState("");
 
     // Photos: device uploads
     const [files, setFiles] = React.useState([]); // File[]
@@ -1725,14 +1747,14 @@ function Sell({ dark, user, lots, setLots }) {
         return "";
     }
 
-    function validateBuyNowPrice(v, startV) {
+    function validateReservePrice(v, startV) {
         if (v === "" || v == null) return ""; // optional
         const n = Number(v);
         const s = Number(startV);
-        if (!Number.isFinite(n)) return "Buy now price must be a number.";
-        if (n < MIN) return `Buy now price must be at least \u20AC${MIN}.`;
-        if (!isMultipleOf50(n)) return "Buy now price must increase in \u20AC50 steps (e.g., 250, 300, 350...).";
-        if (Number.isFinite(s) && n < s) return "Buy now price must be greater than or equal to the starting price.";
+        if (!Number.isFinite(n)) return "Reserve price must be a number.";
+        if (n < MIN) return `Reserve price must be at least \u20AC${MIN}.`;
+        if (!isMultipleOf50(n)) return "Reserve price must increase in \u20AC50 steps (e.g., 250, 300, 350...).";
+        if (Number.isFinite(s) && n < s) return "Reserve price must be greater than or equal to the starting price.";
         return "";
     }
 
@@ -1776,19 +1798,20 @@ function Sell({ dark, user, lots, setLots }) {
         e.preventDefault();
 
         // Re-run price validators
+        if (listingType === "auction") {
         const se = validateStartPrice(startPrice);
-        const be = validateBuyNowPrice(buyNowPrice, startPrice);
+        const be = validateReservePrice(reservePrice, startPrice);
         setStartErr(se);
-        setBuyErr(be);
+        setReserveErr(be);
         if (se || be) return;
-
+        }
         // Other fields
         const err = validateFormOther();
         if (err) { setError(err); return; }
         setError("");
 
         const sp = Number(startPrice);
-        const bp = buyNowPrice === "" ? undefined : Number(buyNowPrice);
+        const bp = reservePrice === "" ? undefined : Number(reservePrice);
 
         // Specs object (omit "-" / blanks)
         const specs = {};
@@ -1815,7 +1838,7 @@ function Sell({ dark, user, lots, setLots }) {
             documents: docList,
         };
         const newLot = listingType === "auction" ? {
-            ...base, type: "auction", currentBid: sp, buyNow: bp, endsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+            ...base, type: "auction", currentBid: sp, reserve: bp, endsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
         } 
             : { ...base, type: "sale", askingPrice: sp, endsAt:null };
 
@@ -1828,7 +1851,7 @@ function Sell({ dark, user, lots, setLots }) {
             <div className={`rounded-2xl border p-6 ${dark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white border-gray-200"}`}>
                 <h1 className="text-2xl font-semibold">Sell equipment</h1>
                 <p className={`text-sm mt-1 ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                    Fill in the details below to create your auction listing.
+                    {listingType === "auction" ? "Fill in the details below to create your auction listing." : "Fill in the details below to create your for-sale listing."}
                 </p>
 
                 <form className="mt-6 space-y-6" onSubmit={onSubmit}>
@@ -1980,6 +2003,7 @@ function Sell({ dark, user, lots, setLots }) {
                         <div className={`mt-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
                             Minimum is {"\u20AC"}250. Amounts must increase in {"\u20AC"}50 steps (e.g., 250, 300, 350...).
                         </div>
+                        {listingType === "auction" ? (
                         <div className="mt-2 grid sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="text-xs">Starting price (EUR)</label>
@@ -1995,7 +2019,7 @@ function Sell({ dark, user, lots, setLots }) {
                                         }
                                         setStartPrice(v);
                                         setStartErr(validateStartPrice(v));
-                                        setBuyErr(validateBuyNowPrice(buyNowPrice, v));
+                                        setReserveErr(validateReservePrice(reservePrice, v));
                                     }}
                                     onBlur={(e) => {
                                         // If empty on blur, reset to "0"
@@ -2011,35 +2035,56 @@ function Sell({ dark, user, lots, setLots }) {
                                 )}
                             </div>
                             <div>
-                                <label className="text-xs">Buy now price (EUR, optional)</label>
+                                <label className="text-xs">Reserve price (EUR, optional)</label>
                                 <input
                                     type="number"
                                     inputMode="numeric"
-                                    value={buyNowPrice}
+                                    value={reservePrice}
                                     onChange={(e) => {
                                         let v = e.target.value;
                                         if (v.length > 1 && v.startsWith("0")) {
                                             v = v.replace(/^0+/, ""); // remove all leading zeros
                                             if (v === "") v = "0";
                                         }
-                                        setBuyNowPrice(v);
-                                        setBuyErr(validateBuyNowPrice(v, startPrice));
+                                        setReservePrice(v);
+                                        setReserveErr(validateReservePrice(v, startPrice));
                                     }}
                                     onBlur={(e) => {
                                         // If empty on blur, reset to "0"
-                                        if (e.target.value === "") setBuyNowPrice("");
+                                        if (e.target.value === "") setReservePrice("");
                                     }}
                                     placeholder="(optional)"
-                                    aria-invalid={Boolean(buyErr)}
+                                    aria-invalid={Boolean(reserveErr)}
                                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
-                                        } ${buyErr ? "border-red-500" : ""}`}
+                                        } ${reserveErr ? "border-red-500" : ""}`}
                                 />
-                                {buyErr && (
-                                    <p className={`mt-1 text-xs ${dark ? "text-red-300" : "text-red-600"}`}>{buyErr}</p>
+                                {reserveErr && (
+                                    <p className={`mt-1 text-xs ${dark ? "text-red-300" : "text-red-600"}`}>{reserveErr}</p>
                                 )}
-                            </div>
                         </div>
                     </div>
+                    ) : (
+                    <div className="mt-2">
+                        {/* For sale: Asking price only (reuse startPrice + validator) */}
+                        <label className="text-xs">Asking price (EUR)</label>
+                        <input
+                            type="number"
+                            inputMode="numeric"
+                            value={startPrice}
+                            onChange={(e) => {
+                                let v = e.target.value;
+                                if (v.length > 1 && v.startsWith("0")) v = v.replace(/^0+/, "") || "0";
+                                setStartPrice(v);
+                                setStartErr(validateStartPrice(v));
+                            }}
+                            onBlur={(e) => { if (e.target.value === "") setStartPrice("0"); }}
+                            aria-invalid={Boolean(startErr)}
+                            className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""} ${startErr ? "border-red-500" : ""}`}
+                        />
+                        {startErr && <p className={`mt-1 text-xs ${dark ? "text-red-300" : "text-red-600"}`}>{startErr}</p>}
+                    </div>
+  )}
+            </div>
 
                     {/* Location */}
                     <div>
@@ -2061,8 +2106,8 @@ function Sell({ dark, user, lots, setLots }) {
                     <div className="pt-2 flex gap-2">
                         <button
                             type="submit"
-                            disabled={Boolean(startErr || buyErr)}
-                            className={`px-4 py-2 rounded-xl text-sm ${startErr || buyErr ? "bg-gray-300 text-gray-600 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 text-white"
+                            disabled={Boolean(startErr || reserveErr)}
+                            className={`px-4 py-2 rounded-xl text-sm ${startErr || reserveErr ? "bg-gray-300 text-gray-600 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 text-white"
                                 }`}
                         >
                             Create listing
