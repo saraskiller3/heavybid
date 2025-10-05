@@ -6,6 +6,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Link, useParams, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { Search, Clock, MapPin, Sun, Moon, ChevronLeft, CheckCircle2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import LocationAutocompleteOSM from "./components/LocationAutocompleteOSM";
 
 
 // ---- Mock data (expandable / replace with API later) ----
@@ -1732,6 +1733,8 @@ function Sell({ dark, user, lots, setLots }) {
     const [description, setDescription] = React.useState("");
     const [documents, setDocuments] = React.useState("");
     const [location, setLocation] = React.useState("");
+    const [coords, setCoords] = React.useState(null);
+    const [locationErr, setLocationErr] = React.useState("");
 
     // Prices as raw strings; live inline errors
     const [startPrice, setStartPrice] = React.useState("0");
@@ -1817,7 +1820,10 @@ function Sell({ dark, user, lots, setLots }) {
 
     function onSubmit(e) {
         e.preventDefault();
-
+        if (!coords || !location) {
+            setLocationErr("Please select a valid location from the list.");
+            return;
+        }
         // Re-run price validators
         if (listingType === "auction") {
         const se = validateStartPrice(startPrice);
@@ -1847,6 +1853,7 @@ function Sell({ dark, user, lots, setLots }) {
             id: newId,
             title: title.trim(),
             location: location.trim(), // "City, Country"
+            coords, // { lat, lng }
             images: previews.slice(), // use object URLs for MVP
             year: Number(year),
             hours: hours === "-" || hours === "" ? undefined : Number(hours),
@@ -2110,12 +2117,17 @@ function Sell({ dark, user, lots, setLots }) {
                     {/* Location */}
                     <div>
                         <label className="text-xs font-medium">Location</label>
-                        <input
+                        <LocationAutocompleteOSM
                             value={location}
-                            onChange={(e) => setLocation(e.target.value)}
-                            placeholder="City, Country"
-                            className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            onChange={(v) => { setLocation(v); setCoords(null); setLocationErr(""); }}
+                            onSelect={(item) => { setLocation(item.label); setCoords(item.coords); setLocationErr(""); }}
+                            dark={dark}
+                        // Limit to your markets (optional):
+                        // countryCodes={["ee","lv","lt","de","pl","se","fi"]}
                         />
+                        {locationErr && (
+                            <p className={`mt-1 text-xs ${dark ? "text-red-300" : "text-red-600"}`}>{locationErr}</p>
+                        )}
                     </div>
 
                     {/* Top-level error */}
