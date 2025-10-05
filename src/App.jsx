@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route, Link, useParams, useNavigate, Navigate, u
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { Search, Clock, MapPin, Sun, Moon, ChevronLeft, CheckCircle2, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import LocationAutocompleteOSM from "./components/LocationAutocompleteOSM";
-
+import { CountrySelect } from "./components/CountrySelect";
 
 // ---- Mock data (expandable / replace with API later) ----
 const MOCK_LISTINGS = [
@@ -341,17 +341,13 @@ function Filters({
 
             {/* Country */}
             <div>
-                <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Country</label>
-                <select
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
-                >
-                    <option value="All">All ({<Count map={countryCounts} />})</option>
-                    {countries.filter(c => c !== "All").map((c) => (
-                        <option key={c} value={c}>{c} ({countryCounts.get(c) || 0})</option>
-                    ))}
-                </select>
+                <CountrySelect
+                    dark={dark}
+                    countries={countries}
+                    country={country}
+                    setCountry={setCountry}
+                    countryCounts={countryCounts}
+                />
             </div>
 
             {/* Category */}
