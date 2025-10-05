@@ -1199,33 +1199,43 @@ function LotDetail({ lots, setLots, dark, user }) {
     const [lightbox, setLightbox] = useState(false);
 
     // Bid state (initialize to next step above current bid, but at least MIN_BID)
-    const [bid, setBid] = useState(
-        Math.max(nextValidStep(((lot?.currentBid ?? 0) + STEP)), MIN_BID)
-    );
+    const initialBid = Math.max(nextValidStep(((lot?.currentBid ?? 0) + STEP)), MIN_BID);
+    const [bidInput, setBidInput] = useState(String(initialBid)); // keep as string while typing
     const [error, setError] = useState("");
 
     // Validate bid whenever it changes (safe: early-return if no lot)
     useEffect(() => {
         if (!lot) return;
-        if (Number.isNaN(bid)) { setError("Enter a number."); return; }
-        if (bid < MIN_BID) { setError(`Minimum bid is \u20AC${MIN_BID}.`); return; }
-        if (!isStepAmount(bid)) { setError(`Bids must be in \u20AC${STEP} steps (e.g. 250, 300, 350).`); return; }
-        if (bid <= lot.currentBid) { setError(`Your bid must be higher than the current bid (\u20AC${lot.currentBid}).`); return; }
+
+        if (bidInput === "") { setError("Enter a number."); return; }
+
+        const bid = Number(bidInput);
+        if (!Number.isFinite(bid)) { setError("Enter a number."); return; }
+        if (bid < MIN_BID) {
+            setError(`Minimum bid is \u20AC${MIN_BID}.`); return; }
+        if (!isStepAmount(bid)) {
+            setError(`Bids must be in \u20AC${STEP} steps(e.g. 250, 300, 350).`); return; }
+        if (bid <= lot.currentBid) {
+            setError(`Your bid must be higher than the current bid(\u20AC${lot.currentBid}).`); return; }
+
         setError("");
-    }, [bid, lot]);
+    }, [bidInput, lot]);
 
     // Handlers
     function placeBid() {
         if (!lot || error) return;
-        setLots((prev) =>
-            prev.map((l) => (l.id === lot.id ? { ...l, currentBid: bid } : l))
-        );
+        const bid = nextValidStep(Number(bidInput));
+        setLots(prev => prev.map(l => (l.id === lot.id ? { ...l, currentBid: bid } : l)));
+        setBidInput(String(bid)); // reflect snapped value
         alert(`Bid placed: \u20AC${bid.toLocaleString()}`);
     }
+
     function nudge(delta) {
-        const next = Math.max(MIN_BID, bid + delta * STEP);
-        setBid(nextValidStep(next));
+        const current = bidInput === "" ? initialBid : Number(bidInput) || 0;
+        const next = Math.max(MIN_BID, current + delta * STEP);
+        setBidInput(String(nextValidStep(next)));
     }
+
     const openLightbox = () => setLightbox(true);
     const closeLightbox = () => setLightbox(false);
     const prevImage = () => setActiveIdx((i) => (i - 1 + lot.images.length) % lot.images.length);
@@ -1396,13 +1406,24 @@ function LotDetail({ lots, setLots, dark, user }) {
                         <div className="mt-1 flex items-stretch gap-2">
                             <button type="button" onClick={() => nudge(-1)} className="px-3 rounded-xl border" aria-label="Decrease by 50">-50</button>
                             <input
-                                type="number"
+                                type="text"
                                 inputMode="numeric"
                                 min={MIN_BID}
                                 step={STEP}
-                                value={bid}
-                                onChange={(e) => setBid(Number(e.target.value))}
-                                onBlur={() => setBid(nextValidStep(bid))}
+                                value={bidInput}
+                                        onChange={(e) => {
+                                            const raw = e.target.value;
+                                            if (raw === "") {
+                                                setBidInput(""); return;
+                                            }
+                                            const digitsOnly = raw.replace(/[^\d]/g, "");
+                                            setBidInput(digitsOnly);
+                                        }}
+                                        onBlur={() => {
+                                            if (bidInput === "") return;
+                                            const snapped = String(nextValidStep(Number(bidInput)));
+                                            setBidInput(snapped);                                           
+                                        }}
                                 className={`flex-1 border rounded-xl px-3 py-2 ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                             />
                             <button type="button" onClick={() => nudge(1)} className="px-3 rounded-xl border" aria-label="Increase by 50">+50</button>
