@@ -136,6 +136,87 @@ const MOCK_LISTINGS = [
 
 
 ];
+// --- EU money helpers ---
+function formatEUIntegerString(digits) {
+  // "42000" -> "42.000"
+  if (!digits) return "";
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+function parseEUToNumber(text) {
+  // "42.000" -> 42000 (number)
+  const digits = String(text || "").replace(/[^\d]/g, "");
+  if (!digits) return 0;
+  return Number(digits);
+}
+function nearestStepAbove(n, step) {
+  if (!step) return n;
+  const m = n % step;
+  return m === 0 ? n : n + (step - m);
+}
+
+/**
+ * EuroInput — formats with EU dots while typing, returns Number via onValue.
+ * Props:
+ *  - value: number
+ *  - onValue: (number) => void
+ *  - min?: number
+ *  - step?: number
+ *  - placeholder?: string
+ *  - disabled?: boolean
+ *  - className?: string
+ *  - dark?: boolean
+ */
+function EuroInput({
+  value,
+  onValue,
+  min = 0,
+  step = 0,
+  placeholder = "",
+  disabled = false,
+  className = "",
+  dark = false,
+}) {
+  const [text, setText] = React.useState(formatEUIntegerString(String(Math.max(0, Math.round(value || 0)))));
+
+  // Keep text in sync if parent value changes from the outside
+  React.useEffect(() => {
+    const clean = formatEUIntegerString(String(Math.max(0, Math.round(value || 0))));
+    if (clean !== text) setText(clean);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  function onChange(e) {
+    // Keep only digits; add grouping dots
+    const digits = e.target.value.replace(/[^\d]/g, "");
+    const pretty = formatEUIntegerString(digits);
+    setText(pretty);
+    onValue?.(parseEUToNumber(pretty));
+  }
+
+  function onBlur() {
+    let n = parseEUToNumber(text);
+    if (n < min) n = min;
+    if (step > 0) n = nearestStepAbove(n, step);
+    onValue?.(n);
+    setText(formatEUIntegerString(String(n)));
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9.]*"
+      value={text}
+      onChange={onChange}
+      onBlur={onBlur}
+      placeholder={placeholder}
+      disabled={disabled}
+      className={`${className} ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+      aria-label="Amount in euros"
+    />
+  );
+}
+// --- end EU money input ---
 // Map common EU/EEA country names ? ISO-2 codes (lowercased keys)
 const NAME_TO_CODE = {
     "austria": "AT", "belgium": "BE", "bulgaria": "BG", "croatia": "HR", "cyprus": "CY", "czech republic": "CZ", "czechia": "CZ",
@@ -179,7 +260,10 @@ function reserveInfo(lot) {
     return { has, met };
 }
 
-function formatCurrency(n) { return new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(n); }
+function formatCurrency(value) {
+    if (value == null || isNaN(value)) return "\u20AC0";
+    return `\u20AC${Math.round(value).toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
 
 function pad2(n) {
     const s = Math.floor(Math.max(0, n)).toString();
@@ -449,7 +533,7 @@ function Filters({
                         className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                     >
                         {priceSteps.map((v) => (
-                            <option key={`min-${v}`} value={v}>{"\u20AC"}{v.toLocaleString()}</option>
+                            <option key={`min-${v}`} value={v}>{formatCurrency(v)}</option>
                         ))}
                     </select>
                     <select
@@ -462,7 +546,7 @@ function Filters({
                         className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                     >
                         {priceSteps.filter(v => v >= priceMin).map((v) => (
-                            <option key={`max-${v}`} value={v}>{"\u20AC"}{v.toLocaleString()}</option>
+                            <option key={`max-${v}`} value={v}>{formatCurrency(v)}</option>
                         ))}
                     </select>
                 </div>
@@ -860,7 +944,7 @@ function Home({
                 </div>
 
                 <p className={`text-xs -mt-2 mb-4 ${dark ? "text-neutral-400" : "text-gray-600"}`}>
-                    Showing bids between {"\u20AC"}{priceMin.toLocaleString()} and {"\u20AC"}{priceMax.toLocaleString()}.
+                    Showing bids between {formatCurrency(priceMin)} and {formatCurrency(priceMax)}.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -1267,7 +1351,7 @@ function LotDetail({ lots, setLots, dark, user }) {
         const bid = nextValidStep(Number(bidInput));
         setLots(prev => prev.map(l => (l.id === lot.id ? { ...l, currentBid: bid } : l)));
         setBidInput(String(bid)); // reflect snapped value
-        alert(`Bid placed: \u20AC${bid.toLocaleString()}`);
+        alert(`Bid placed: ${formatCurrency(bid)}`);
     }
 
     function nudge(delta) {
@@ -1471,16 +1555,40 @@ function LotDetail({ lots, setLots, dark, user }) {
                                             setBidInput(snapped);                                           
                                         }}
                                 className={`flex-1 border rounded-xl px-3 py-2 ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
-                            />
+                                    />
+                                   
                             <button type="button" onClick={() => nudge(1)} className="px-3 rounded-xl border" aria-label="Increase by 50">+50</button>
                         </div>
-
-                        <p className={`mt-2 text-xs ${error ? "text-red-600" : dark ? "text-neutral-400" : "text-gray-500"}`}>
-                            Minimum bid is {"\u20AC"}{MIN_BID}. Bids increase in {"\u20AC"}{STEP} steps (e.g. 250, 300, 350). Your bid must be higher than the current bid.
-                        </p>
-                        
-                                {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
-
+                                {/* ? Show preview below the bid input */}
+                                {Number.isFinite(Number(bidInput)) && bidInput !== "" && !error && (
+                                    <p className={`mt-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                                        Preview:
+                                        {formatCurrency(Number(bidInput))}
+                                    </p>
+                                )}
+                                <p className={`mt-2 text-xs ${error ? "text-red-600" : dark ? "text-neutral-400" : "text-gray-500"}`}>
+                                    Minimum bid is {"\u20AC"}{MIN_BID.toLocaleString("de-DE")}.{" "}
+                                    Bids increase in {"\u20AC"}{STEP.toLocaleString("de-DE")} steps
+                                    {'\u00A0'}(e.g. 250, 300, 350).{" "}
+                                    {error?.includes("current bid") ? (
+                                        <>
+                                            Your bid must be higher than the current bid (
+                                            {"\u20AC"}{lot.currentBid.toLocaleString("de-DE")}
+                                            ).
+                                        </>
+                                    ) : (
+                                        "Your bid must be higher than the current bid."
+                                    )}
+                                </p>
+                                {/* Conditional error message */}
+                                {error && error.includes("steps") && (
+                                    <p className="text-xs text-red-600 mt-1">
+                                        {error.replace(/\u20AC/g, "\u20AC").replace(
+                                            /(\d+)/g,
+                                            (num) => Number(num).toLocaleString("de-DE")
+                                        )}
+                                    </p>
+                                )}
                         {/* Signed-out notice */}
                         {!user && (
                             <div
@@ -2107,7 +2215,12 @@ function Sell({ dark, user, lots, setLots }) {
                                     aria-invalid={Boolean(startErr)}
                                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
                                         } ${startErr ? "border-red-500" : ""}`}
-                                />
+                                    />
+                                    {Number.isFinite(Number(startPrice)) && Number(startPrice) > 0 && !startErr && (
+                                        <p className={`mt-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                                            Preview: {formatCurrency(Number(startPrice))}
+                                        </p>
+                                    )}
                                 {startErr && (
                                     <p className={`mt-1 text-xs ${dark ? "text-red-300" : "text-red-600"}`}>{startErr}</p>
                                 )}
@@ -2135,7 +2248,12 @@ function Sell({ dark, user, lots, setLots }) {
                                     aria-invalid={Boolean(reserveErr)}
                                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
                                         } ${reserveErr ? "border-red-500" : ""}`}
-                                />
+                                    />
+                                    {reservePrice !== "" && Number.isFinite(Number(reservePrice)) && Number(reservePrice) > 0 && !reserveErr && (
+                                        <p className={`mt-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                                            Preview: {formatCurrency(Number(reservePrice))}
+                                        </p>
+                                    )}
                                 {reserveErr && (
                                     <p className={`mt-1 text-xs ${dark ? "text-red-300" : "text-red-600"}`}>{reserveErr}</p>
                                 )}
@@ -2158,7 +2276,12 @@ function Sell({ dark, user, lots, setLots }) {
                             onBlur={(e) => { if (e.target.value === "") setStartPrice("0"); }}
                             aria-invalid={Boolean(startErr)}
                             className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""} ${startErr ? "border-red-500" : ""}`}
-                        />
+                                    />
+                                    {Number.isFinite(Number(startPrice)) && Number(startPrice) > 0 && !startErr && (
+                                        <p className={`mt-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                                            Preview: {formatCurrency(Number(startPrice))}
+                                        </p>
+                                    )}
                         {startErr && <p className={`mt-1 text-xs ${dark ? "text-red-300" : "text-red-600"}`}>{startErr}</p>}
                     </div>
   )}
