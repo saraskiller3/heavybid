@@ -136,7 +136,43 @@ const MOCK_LISTINGS = [
 
 
 ];
+// Map common EU/EEA country names ? ISO-2 codes (lowercased keys)
+const NAME_TO_CODE = {
+    "austria": "AT", "belgium": "BE", "bulgaria": "BG", "croatia": "HR", "cyprus": "CY", "czech republic": "CZ", "czechia": "CZ",
+    "denmark": "DK", "estonia": "EE", "finland": "FI", "france": "FR", "germany": "DE", "greece": "GR", "hungary": "HU", "ireland": "IE",
+    "italy": "IT", "latvia": "LV", "lithuania": "LT", "luxembourg": "LU", "malta": "MT", "netherlands": "NL", "poland": "PL",
+    "portugal": "PT", "romania": "RO", "slovakia": "SK", "slovenia": "SI", "spain": "ES", "sweden": "SE",
+    "iceland": "IS", "liechtenstein": "LI", "norway": "NO"
+};
 
+// Turn "DE" ? ????
+function Flag({ cc, className = "" }) {
+    if (!cc || cc.length !== 2) return null;
+    const lower = cc.toLowerCase();
+    return (
+        <img
+            src={`https://flagcdn.com/24x18/${lower}.png`}
+            srcSet={`https://flagcdn.com/48x36/${lower}.png 2x, https://flagcdn.com/72x54/${lower}.png 3x`}
+            width="24"
+            height="18"
+            alt={cc}
+            className={`inline-block align-[2px] rounded-[2px] ${className}`}
+            loading="lazy"
+            referrerPolicy="no-referrer"
+        />
+    );
+}
+
+// Best-effort country code for a lot: prefer saved code; else parse from location
+function getCountryCodeFromLot(lot) {
+    if (lot?.countryCode && typeof lot.countryCode === "string") return lot.countryCode.toUpperCase();
+    const loc = (lot?.location || "").trim();
+    if (!loc) return null;
+    // take the last comma-part as country name
+    const parts = loc.split(",");
+    const countryName = parts[parts.length - 1].trim().toLowerCase();
+    return NAME_TO_CODE[countryName] || null;
+}
 function reserveInfo(lot) {
     const has = typeof lot?.reservePrice === "number" && Number.isFinite(lot.reservePrice);
     const met = has ? Number(lot.currentBid ?? 0) >= lot.reservePrice : false;
@@ -513,7 +549,14 @@ function Card({ lot, dark }) {
                         className={`text-sm mt-1 flex items-center gap-1 ${dark ? "text-neutral-400" : "text-gray-500"
                             }`}
                     >
-                        <MapPin size={14} /> {lot.location} {" \u00B7 "} {lot.seller}
+                        <MapPin size={14} />
+                        <span className="inline-flex items-center gap-1">
+                            <Flag 
+                                cc={getCountryCodeFromLot(lot)}/>
+                            {lot.location}
+                        </span>
+                        {" \u00B7 "}
+                        {lot.seller}
                     </p>
 
                     {/* Quick facts row */}
@@ -1305,8 +1348,14 @@ function LotDetail({ lots, setLots, dark, user }) {
                 <div className={`rounded-2xl border p-4 h-max ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
                     <h1 className="text-2xl font-semibold leading-tight">{lot.title}</h1>
                     <p className={`mt-1 text-sm flex items-center gap-1 ${dark ? "text-neutral-400" : "text-gray-500"}`}>
-                        <MapPin size={14} /> {lot.location} {" \u00B7 "} {lot.seller}
-
+                        <MapPin size={14} />
+                        <span className="inline-flex items-center gap-1">
+                            <Flag
+                           cc={getCountryCodeFromLot(lot)} />
+                            {lot.location}
+                        </span>
+                        {" \u00B7 "}
+                        {lot.seller}
                     </p>
                     
                     <div className="mt-2 flex gap-2">
@@ -1847,6 +1896,10 @@ function Sell({ dark, user, lots, setLots }) {
         if (weight && weight !== "-") specs.weight = weight;
 
         const docList = documents.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean);
+        const locLower = (location || "").toLowerCase();
+        const matched = Object.entries(NAME_TO_CODE)
+            .find(([name]) => locLower.includes(name));
+        const cc = matched ? matched[1] : null;
 
         const newId = `NEW${Date.now().toString().slice(-6)}`;
         const base = {
@@ -1854,6 +1907,7 @@ function Sell({ dark, user, lots, setLots }) {
             title: title.trim(),
             location: location.trim(), // "City, Country"
             coords, // { lat, lng }
+            countryCode: cc,
             images: previews.slice(), // use object URLs for MVP
             year: Number(year),
             hours: hours === "-" || hours === "" ? undefined : Number(hours),

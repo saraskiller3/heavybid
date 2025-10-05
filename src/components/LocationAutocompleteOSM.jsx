@@ -1,5 +1,9 @@
 ﻿import React from "react";
-
+// ISO two-letter country codes for EU + EEA
+const EU_EEA_CODES = [
+    "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT",
+    "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE", "IS", "LI", "NO"
+];
 /** Build a friendly "City, Country" label from a Nominatim result */
 function toLabel(item) {
     const a = item.address || {};
@@ -36,7 +40,7 @@ export default function LocationAutocompleteOSM({
     onSelect,
     dark,
     placeholder = "City, Country",
-    countryCodes = [],
+    countryCodes = [EU_EEA_CODES],
 }) {
     const [q, setQ] = React.useState(value || "");
     const [open, setOpen] = React.useState(false);
@@ -47,6 +51,7 @@ export default function LocationAutocompleteOSM({
     const rootRef = React.useRef(null);
     const lastFetchRef = React.useRef(0);
     const abortRef = React.useRef(null);
+
 
     // Keep local input synced with parent
     React.useEffect(() => {
