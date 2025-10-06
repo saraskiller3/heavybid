@@ -5,9 +5,10 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Link, useParams, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { motion as Motion, AnimatePresence } from "framer-motion";
-import { Search, Clock, MapPin, Sun, Moon, ChevronLeft, CheckCircle2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Search, Clock, MapPin, Sun, Moon, ChevronLeft, CheckCircle2, Mail, Lock, Eye, EyeOff, ChevronRight, X } from "lucide-react";
 import LocationAutocompleteOSM from "./components/LocationAutocompleteOSM";
 import { CountrySelect } from "./components/CountrySelect";
+
 
 // ---- Mock data (expandable / replace with API later) ----
 const MOCK_LISTINGS = [
@@ -32,6 +33,7 @@ const MOCK_LISTINGS = [
         endsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Excavator",
         seller: "Baltic Machinery O\u00DC",
+        sellerEmail: "seller1@example.com",
         specs: { weight: "22,000 kg", engine: "Komatsu SAA6D107E-1", power: "123 kW" },
         description: "Well maintained PC210 with full service records. New tracks in 2022. Ready to work.",
         documents: ["Service history", "CE certificate"],
@@ -57,6 +59,7 @@ const MOCK_LISTINGS = [
         endsAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Wheel loader",
         seller: "Nordic Plant",
+        sellerEmail: "seller2@example.com",
         specs: { weight: "20,700 kg", engine: "Volvo D8J", power: "191 kW" },
         description: "Low hours L120. Stage V, aircon, hydraulic quick coupler.",
         documents: ["User manual"],
@@ -81,6 +84,7 @@ const MOCK_LISTINGS = [
         endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Bulldozer",
         seller: "Estonian Earthworks",
+        sellerEmail: "seller3@example.com",
         specs: { weight: "23,000 kg", engine: "Cat C9.3", power: "153 kW" },
         description: "Strong D6 with ripper and blade; recent hydraulics check.",
         documents: ["CE certificate", "Inspection report"],
@@ -106,6 +110,7 @@ const MOCK_LISTINGS = [
         endsAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Miscellaneous",
         seller: "FBR",
+        sellerEmail: "seller4@example.com",
         specs: { weight: "23,000 kg", engine: "Volvo 555", power: "250 kW" },
         description: "Brand new, factory warranty, new in Europe",
         documents: ["CE certificate", "Inspection report", "Customs clearance", "5 year factory warranty"],
@@ -129,6 +134,7 @@ const MOCK_LISTINGS = [
         endsAt: null,                    // no countdown
         category: "Backhoe",
         seller: "UAB Forestas",
+        sellerEmail: "seller5@example.com",
         specs: { engine: "JCB 444", power: "68 kW", weight: "8,000 kg" },
         description: "Clean 3CX, quick coupler, 4-in-1 bucket.",
         documents: ["CE certificate"],
@@ -584,7 +590,11 @@ function FactPill({ label, value, dark }) {
     );
 }
 
-function Card({ lot, dark }) {
+function Card({ lot, dark, user }) {
+    const userEmail = user?.email?.trim().toLowerCase() || "";
+    const lotSellerEmail = lot?.sellerEmail?.trim().toLowerCase() || "";
+
+    const isOwner = !!userEmail && !!lotSellerEmail && userEmail === lotSellerEmail;
     const kind = lot.type || "auction"; // default to auction if missing
     const { has, met } = reserveInfo(lot);
     return (
@@ -620,6 +630,12 @@ function Card({ lot, dark }) {
                             <>For sale</>
                         )}
                     </div>
+                    {isOwner && (
+                        <div className={`absolute bottom-3 right-3 px-2 py-1 rounded-md text-xs font-semibold z-10 ${dark ? "bg-amber-900/90 text-amber-200" : "bg-amber-100 text-amber-800"
+                            }`}>
+                            Your listing
+                        </div>
+                    )}
                 </div>
 
                 {/* Body */}
@@ -736,7 +752,7 @@ function Home({
     country, setCountry,
     condition, setCondition,
     defects, setDefects,
-    priceSteps, priceMin, priceMax, setPriceMin, setPriceMax
+    priceSteps, priceMin, priceMax, setPriceMin, setPriceMax, user
 }) {
     const [listingType, setListingType] = React.useState("All"); // All | auction | sale
     const [_tick, setTick] = useState(0);
@@ -956,7 +972,7 @@ function Home({
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 10 }}
                             >
-                                <Card lot={l} dark={dark} />
+                                <Card lot={l} dark={dark} user={user} />
                             </Motion.div>
                         ))}
                     </AnimatePresence>
@@ -1070,7 +1086,13 @@ function Lightbox({ images, index, alt, onClose, onPrev, onNext }) {
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, [onClose, onPrev, onNext]);
-
+    useEffect(() => {
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = "hidden";  // ?? stop page scroll
+        return () => {
+            document.body.style.overflow = prev;    // ?? restore on close
+        };
+    }, []);
     // Helpers
     const startDrag = (clientX, clientY) => {
         setDragging(true);
@@ -1115,7 +1137,20 @@ function Lightbox({ images, index, alt, onClose, onPrev, onNext }) {
     const onTouchEnd = () => { setDragging(false); setPinching(false); };
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/90" onClick={onClose}>
+        
+        <div
+                className="fixed inset-0 z-[10001] bg-black/90 backdrop-blur-sm flex items-center justify-center"
+            role="dialog"
+            aria-modal="true"
+            // ?? prevent page scroll on backdrop (but allow image zoom)
+            onWheelCapture={(e) => {
+                if (e.target === e.currentTarget) { e.preventDefault(); e.stopPropagation(); }
+            }}
+            onTouchMoveCapture={(e) => {
+                if (e.target === e.currentTarget) { e.preventDefault(); e.stopPropagation(); }
+            }}
+            onClick={onClose}
+        >
             {/* Top-right controls */}
             <div className="absolute top-4 right-4 flex gap-2">
                 <button
@@ -1310,7 +1345,11 @@ function LotDetail({ lots, setLots, dark, user }) {
         typeof lot?.reservePrice === "number" && Number.isFinite(lot.reservePrice);
     const reserveMet =
         hasReserve && Number(lot.currentBid ?? 0) >= lot.reservePrice;
-    
+    // Top of LotDetail (after you got 'lot' and 'user')
+    const isOwner = !!user && (
+        (lot.sellerEmail && lot.sellerEmail === user.email) ||
+        (!lot.sellerEmail && lot.seller && lot.seller === user.email) // fallback if older data
+    );
 
     // Hooks must always be at the top (no conditionals)
     const [_tick, setTick] = useState(0); // just to re-render countdown each second
@@ -1348,6 +1387,10 @@ function LotDetail({ lots, setLots, dark, user }) {
     // Handlers
     function placeBid() {
         if (!lot || error) return;
+        if (isOwner) {
+            alert("You cannot bid on your own listing.");
+            return;
+        }   
         const bid = nextValidStep(Number(bidInput));
         setLots(prev => prev.map(l => (l.id === lot.id ? { ...l, currentBid: bid } : l)));
         setBidInput(String(bid)); // reflect snapped value
@@ -1389,6 +1432,7 @@ function LotDetail({ lots, setLots, dark, user }) {
                 {/* Gallery */}
                 <div className={`lg:col-span-2 rounded-2xl overflow-hidden border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
                     <button
+                        type="button"
                         onClick={openLightbox}
                         className={`${dark ? "bg-neutral-900" : "bg-white"} w-full cursor-zoom-in`}
                         style={{ aspectRatio: "16 / 9" }}
@@ -1603,7 +1647,7 @@ function LotDetail({ lots, setLots, dark, user }) {
                         )}
 
                         {/* Action buttons — only show when signed in */}
-                        {user && (
+                                {user && !isOwner && (
                             <div className="mt-3 flex gap-2">
                                 <button
                                     className={`flex-1 py-2 rounded-xl text-white ${error ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
@@ -1636,7 +1680,17 @@ function LotDetail({ lots, setLots, dark, user }) {
                             </div>
                         </>
                     )}
+                    {/* Owner notice — replaces the bid UI */}
+                    {user && isOwner && (
+                        <div
+                            className={`mt-3 rounded-xl border p-3 text-sm ${dark ? "bg-neutral-900 border-neutral-800 text-neutral-200" : "bg-amber-50 border-amber-200 text-amber-900"
+                                }`}
+                        >
+                            You're the seller of this lot - bidding and buying are disabled.
+                        </div>
+                    )}
                 </div>
+                
             </div>
 
 
@@ -2019,6 +2073,7 @@ function Sell({ dark, user, lots, setLots }) {
             hasDefects: defects === "With defects",
             category,
             seller: user?.email || "Seller",
+            sellerEmail: user?.email || null,
             specs,
             description: description.trim(),
             documents: docList,
@@ -2407,6 +2462,7 @@ export default function App() {
                                 setPriceMin={setPriceMin}
                                 setPriceMax={setPriceMax}
                                 dark={dark}
+                                user={user}
                             />
                         }
                     />
