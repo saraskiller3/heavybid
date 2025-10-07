@@ -37,6 +37,7 @@ const MOCK_LISTINGS = [
         specs: { weight: "22,000 kg", engine: "Komatsu SAA6D107E-1", power: "123 kW" },
         description: "Well maintained PC210 with full service records. New tracks in 2022. Ready to work.",
         documents: ["Service history", "CE certificate"],
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     },
     {
         id: "WL453",
@@ -63,6 +64,7 @@ const MOCK_LISTINGS = [
         specs: { weight: "20,700 kg", engine: "Volvo D8J", power: "191 kW" },
         description: "Low hours L120. Stage V, aircon, hydraulic quick coupler.",
         documents: ["User manual"],
+        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     },
     {
         id: "CR300",
@@ -88,6 +90,7 @@ const MOCK_LISTINGS = [
         specs: { weight: "23,000 kg", engine: "Cat C9.3", power: "153 kW" },
         description: "Strong D6 with ripper and blade; recent hydraulics check.",
         documents: ["CE certificate", "Inspection report"],
+        createdAt: new Date(Date.now() -  4 * 60 * 60 * 1000).toISOString(),
     },
     {
         id: "TR555",
@@ -114,6 +117,7 @@ const MOCK_LISTINGS = [
         specs: { weight: "23,000 kg", engine: "Volvo 555", power: "250 kW" },
         description: "Brand new, factory warranty, new in Europe",
         documents: ["CE certificate", "Inspection report", "Customs clearance", "5 year factory warranty"],
+        createdAt: new Date().toISOString(),
     },
     {
         id: "FS1001",
@@ -138,6 +142,7 @@ const MOCK_LISTINGS = [
         specs: { engine: "JCB 444", power: "68 kW", weight: "8,000 kg" },
         description: "Clean 3CX, quick coupler, 4-in-1 bucket.",
         documents: ["CE certificate"],
+        createdAt: new Date(Date.now() - 24 * 24 * 60 * 60 * 1000).toISOString(),
     },
 
 
@@ -265,7 +270,20 @@ function reserveInfo(lot) {
     const met = has ? Number(lot.currentBid ?? 0) >= lot.reservePrice : false;
     return { has, met };
 }
-
+function formatDateTime(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    // European: DD/MM/YYYY, 24h HH:MM
+    return d.toLocaleString("en-GB", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+    });
+}
 function formatCurrency(value) {
     if (value == null || isNaN(value)) return "\u20AC0";
     return `\u20AC${Math.round(value).toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -506,6 +524,7 @@ function Filters({
                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                 >
                     <option value="endingSoon">Ending soon</option>
+                    <option value="newest">Newest</option>
                     <option value="priceHigh">Highest bid</option>
                     <option value="priceLow">Lowest bid</option>
                 </select>
@@ -654,7 +673,11 @@ function Card({ lot, dark, user }) {
                         {" \u00B7 "}
                         {lot.seller}
                     </p>
-
+                    {lot.createdAt && (
+                        <p className={`text-xs mt-1 ${dark ? "text-neutral-400" : "text-gray-500"}`}>
+                            Added {formatDateTime(lot.createdAt)}
+                        </p>
+                    )}
                     {/* Quick facts row */}
                     <div className="mt-3 flex flex-wrap gap-2">
                         <FactPill label="Year" value={lot.year} dark={dark} />
@@ -894,6 +917,11 @@ function Home({
         if (sortBy === "priceLow") {
             out = out.slice().sort((a, b) => listingPrice(a) - listingPrice(b));
         }
+        if (sortBy === "newest") out = out.slice().sort((a, b) => {
+            const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return tb - ta; // newest first
+        });
         return out;
     }, [baseFiltered, country, category, condition, defects, sortBy]);
     // --- Pagination ---
@@ -1481,7 +1509,11 @@ function LotDetail({ lots, setLots, dark, user }) {
                         {" \u00B7 "}
                         {lot.seller}
                     </p>
-                    
+                    {lot.createdAt && (
+                        <p className={`text-xs mt-1 ${dark ? "text-neutral-400" : "text-gray-500"}`}>
+                            Added {formatDateTime(lot.createdAt)}
+                        </p>
+                    )}
                     <div className="mt-2 flex gap-2">
                         <span className={`text-[11px] px-2 py-1 rounded-lg border ${lot.hasDefects
                                        ? (dark ? "border-red-700 text-red-300 bg-red-900/20" : "border-red-200 text-red-700 bg-red-50")
@@ -2085,6 +2117,7 @@ function Sell({ dark, user, lots, setLots }) {
             specs,
             description: description.trim(),
             documents: docList,
+            createdAt: new Date().toISOString(),
         };
         const newLot = listingType === "auction" ? {
             ...base, type: "auction", currentBid: sp, reserve: bp, endsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
@@ -2329,6 +2362,8 @@ function Sell({ dark, user, lots, setLots }) {
                         <input
                             type="number"
                             inputMode="numeric"
+                            min={MIN}
+                            step={STEP}
                             value={startPrice}
                             onChange={(e) => {
                                 let v = e.target.value;
