@@ -1669,19 +1669,27 @@ function LotDetail({ lots, setLots, dark, user }) {
                                 <div className={`text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>Asking price</div>
                                 <div className="text-2xl font-bold">{formatCurrency(lot.askingPrice)}</div>
                             </div>
-
-                            <div className="mt-4">
-                                <button
+                                <div className="mt-4">
+                                    {isOwner ? (
+                                        <div
+                                            className={`rounded-xl border p-3 text-sm ${dark ? "bg-neutral-900 border-neutral-800 text-neutral-200" : "bg-amber-50 border-amber-200 text-amber-900"
+                                                }`}
+                                        >
+                                            You're the seller of this listing - contacting yourself is disabled.
+                                        </div>
+                                    ) : (
+                                <button                           
                                     className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
                                     onClick={() => alert("Contact seller (mock)")}
                                 >
                                     Contact seller
-                                </button>
+                                        </button>
+                                    )}
                             </div>
                         </>
                     )}
                     {/* Owner notice — replaces the bid UI */}
-                    {user && isOwner && (
+                    {user && isOwner && isAuction && (
                         <div
                             className={`mt-3 rounded-xl border p-3 text-sm ${dark ? "bg-neutral-900 border-neutral-800 text-neutral-200" : "bg-amber-50 border-amber-200 text-amber-900"
                                 }`}
