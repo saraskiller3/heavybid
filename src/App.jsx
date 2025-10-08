@@ -32,7 +32,8 @@ const MOCK_LISTINGS = [
         reservePrice: 34000,
         endsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Excavator",
-        seller: "Baltic Machinery O\u00DC",
+        sellerType: "Company",
+        companyName: "Baltic Machinery O\u00DC",
         sellerEmail: "seller1@example.com",
         specs: { weight: "22,000 kg", engine: "Komatsu SAA6D107E-1", power: "123 kW" },
         description: "Well maintained PC210 with full service records. New tracks in 2022. Ready to work.",
@@ -59,7 +60,8 @@ const MOCK_LISTINGS = [
         reservePrice: 52000,
         endsAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Wheel loader",
-        seller: "Nordic Plant",
+        sellerType: "Company",
+        companyName: "Nordic Plant",
         sellerEmail: "seller2@example.com",
         specs: { weight: "20,700 kg", engine: "Volvo D8J", power: "191 kW" },
         description: "Low hours L120. Stage V, aircon, hydraulic quick coupler.",
@@ -85,7 +87,8 @@ const MOCK_LISTINGS = [
         reservePrice: 78000,
         endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Bulldozer",
-        seller: "Estonian Earthworks",
+        sellerType: "Company",
+        companyName: "Estonian Earthworks",
         sellerEmail: "seller3@example.com",
         specs: { weight: "23,000 kg", engine: "Cat C9.3", power: "153 kW" },
         description: "Strong D6 with ripper and blade; recent hydraulics check.",
@@ -112,7 +115,8 @@ const MOCK_LISTINGS = [
         reservePrice: 4000000,
         endsAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Miscellaneous",
-        seller: "FBR",
+        sellerType: "Company",  
+        companyName: "FBR",
         sellerEmail: "seller4@example.com",
         specs: { weight: "23,000 kg", engine: "Volvo 555", power: "250 kW" },
         description: "Brand new, factory warranty, new in Europe",
@@ -137,7 +141,8 @@ const MOCK_LISTINGS = [
         askingPrice: 48000,              // ?? price for sale
         endsAt: null,                    // no countdown
         category: "Backhoe",
-        seller: "UAB Forestas",
+        sellerType: "Company",
+        companyName: "UAB Forestas",
         sellerEmail: "seller5@example.com",
         specs: { engine: "JCB 444", power: "68 kW", weight: "8,000 kg" },
         description: "Clean 3CX, quick coupler, 4-in-1 bucket.",
@@ -283,6 +288,17 @@ function formatDateTime(iso) {
         minute: "2-digit",
         hour12: false,
     });
+}
+// helpers (near formatCurrency / prettyLeft)
+function getSellerLabel(lot) {
+    if (!lot) return "";
+    if (lot.sellerType === "Private person") return "Private person";
+    if (lot.sellerType === "Company") {
+        const name = lot.companyName?.trim();
+        return name && name.length ? name : "Company";
+    }
+    // Back-compat for older lots:
+    return lot.seller || "Seller";
 }
 function formatCurrency(value) {
     if (value == null || isNaN(value)) return "\u20AC0";
@@ -671,7 +687,7 @@ function Card({ lot, dark, user }) {
                             {lot.location}
                         </span>
                         {" \u00B7 "}
-                        {lot.seller}
+                        {getSellerLabel(lot)}
                     </p>
                     {lot.createdAt && (
                         <p className={`text-xs mt-1 ${dark ? "text-neutral-400" : "text-gray-500"}`}>
@@ -1507,7 +1523,7 @@ function LotDetail({ lots, setLots, dark, user }) {
                             {lot.location}
                         </span>
                         {" \u00B7 "}
-                        {lot.seller}
+                        {getSellerLabel(lot)}
                     </p>
                     {lot.createdAt && (
                         <p className={`text-xs mt-1 ${dark ? "text-neutral-400" : "text-gray-500"}`}>
@@ -1996,6 +2012,8 @@ function Sell({ dark, user, lots, setLots }) {
     // Top-level form error (non-price)
     const [error, setError] = React.useState("");
     const [listingType, setListingType] = React.useState("auction"); // "auction" | "sale"
+    const [sellerType, setSellerType] = useState("Private person"); // "Private person" | "Company"
+    const [companyName, setCompanyName] = useState("");
 
     // Cleanup all previews on unmount
     React.useEffect(() => {
@@ -2098,6 +2116,10 @@ function Sell({ dark, user, lots, setLots }) {
         const matched = Object.entries(NAME_TO_CODE)
             .find(([name]) => locLower.includes(name));
         const cc = matched ? matched[1] : null;
+        const displaySeller =
+            sellerType === "Private person"
+                ? "Private person"
+                : (companyName?.trim() ? companyName.trim() : "Company");
 
         const newId = `NEW${Date.now().toString().slice(-6)}`;
         const base = {
@@ -2112,8 +2134,10 @@ function Sell({ dark, user, lots, setLots }) {
             condition,
             hasDefects: defects === "With defects",
             category,
-            seller: user?.email || "Seller",
+            seller: displaySeller,
             sellerEmail: user?.email || null,
+            sellerType,  
+            companyName: companyName?.trim() || "", 
             specs,
             description: description.trim(),
             documents: docList,
@@ -2170,7 +2194,40 @@ function Sell({ dark, user, lots, setLots }) {
                             </select>
                         </div>
                     </div>
+                    {/* Seller type */}
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-medium">Seller type</label>
+                            <select
+                                value={sellerType}
+                                onChange={(e) => setSellerType(e.target.value)}
+                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
+                                    }`}
+                            >
+                                <option value="Private person">Private person</option>
+                                <option value="Company">Company</option>
+                            </select>
+                            <p className={`mt-1 text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>
+                                Choose who is selling this machine.
+                            </p>
+                        </div>
 
+                        {/* Only show when Company is selected */}
+                        <div>
+                            <label className="text-xs font-medium">Company name (optional)</label>
+                            <input
+                                value={companyName}
+                                onChange={(e) => setCompanyName(e.target.value)}
+                                placeholder="e.g., UAB Heavybid"
+                                disabled={sellerType !== "Company"}
+                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
+                                    } ${sellerType !== "Company" ? "opacity-60" : ""}`}
+                            />
+                            <p className={`mt-1 text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>
+                                If left blank, it will display as "Company".
+                            </p>
+                        </div>
+                    </div>
                     <div className="grid sm:grid-cols-3 gap-4">
                         <div>
                             <label className="text-xs font-medium">Year</label>
