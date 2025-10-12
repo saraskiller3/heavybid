@@ -8,6 +8,7 @@ import { motion as Motion, AnimatePresence } from "framer-motion";
 import { Search, Clock, MapPin, Sun, Moon, ChevronLeft, CheckCircle2, Mail, Lock, Eye, EyeOff, ChevronRight, X } from "lucide-react";
 import LocationAutocompleteOSM from "./components/LocationAutocompleteOSM";
 import { CountrySelect } from "./components/CountrySelect";
+import { categoryStructure } from "./data/categories";  
 
 
 // ---- Mock data (expandable / replace with API later) ----
@@ -31,7 +32,8 @@ const MOCK_LISTINGS = [
         reserve: true,
         reservePrice: 34000,
         endsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-        category: "Excavator",
+        category: "Excavators",
+        subcategory: "Track excavator",
         sellerType: "Company",
         companyName: "Baltic Machinery O\u00DC",
         sellerEmail: "seller1@example.com",
@@ -59,7 +61,8 @@ const MOCK_LISTINGS = [
         reserve: false,
         reservePrice: 52000,
         endsAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
-        category: "Wheel loader",
+        category: "Loaders",
+        subcategory: "Wheel loader",
         sellerType: "Company",
         companyName: "Nordic Plant",
         sellerEmail: "seller2@example.com",
@@ -86,7 +89,8 @@ const MOCK_LISTINGS = [
         reserve: false,
         reservePrice: 78000,
         endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        category: "Bulldozer",
+        category: "Dozers",
+        subcategory: "Crawler dozer",
         sellerType: "Company",
         companyName: "Estonian Earthworks",
         sellerEmail: "seller3@example.com",
@@ -115,6 +119,7 @@ const MOCK_LISTINGS = [
         reservePrice: 4000000,
         endsAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
         category: "Miscellaneous",
+        subcategory: "Other",
         sellerType: "Company",  
         companyName: "FBR",
         sellerEmail: "seller4@example.com",
@@ -140,7 +145,8 @@ const MOCK_LISTINGS = [
         hasDefects: false,
         askingPrice: 48000,              // ?? price for sale
         endsAt: null,                    // no countdown
-        category: "Backhoe",
+        category: "Loaders",
+        subcategory: "Backhoe loader",
         sellerType: "Company",
         companyName: "UAB Forestas",
         sellerEmail: "seller5@example.com",
@@ -152,6 +158,7 @@ const MOCK_LISTINGS = [
 
 
 ];
+
 // --- EU money helpers ---
 function formatEUIntegerString(digits) {
   // "42000" -> "42.000"
@@ -288,6 +295,431 @@ function formatDateTime(iso) {
         minute: "2-digit",
         hour12: false,
     });
+}
+function SellerDashboard({ lots, user, dark }) {
+    const location = useLocation?.() ?? { pathname: "/my-listings" }; // safe fallback
+    if (!user) {
+        return (
+            <div className="max-w-4xl mx-auto px-4 py-12">
+                <div className={`rounded-2xl border p-6 ${dark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white"}`}>
+                    <h1 className="text-xl font-semibold">My listings</h1>
+                    <p className={`mt-2 text-sm ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                        You must be signed in to view your listings.
+                    </p>
+                    <Link
+                        to="/signin"
+                        state={{ from: location }}
+                        className="inline-block mt-4 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                    >
+                        Sign in
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    const mine = (lots || []).filter(l => (l.sellerEmail && l.sellerEmail === user.email) || (l.seller && l.seller === user.email));
+
+    return (
+        <div className="max-w-6xl mx-auto px-4 py-8">
+            <h1 className="text-2xl font-semibold mb-4">My listings</h1>
+
+            {mine.length === 0 ? (
+                <div className={`rounded-2xl border p-6 ${dark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white"}`}>
+                    <p className={dark ? "text-neutral-300" : "text-gray-700"}>
+                        You haven't created any listings yet.
+                    </p>
+                    <Link to="/sell" className="inline-block mt-4 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm">
+                        Create a listing
+                    </Link>
+                </div>
+            ) : (
+                <div className="overflow-x-auto rounded-2xl border">
+                    <table className={`min-w-full text-sm ${dark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white"}`}>
+                        <thead className={dark ? "bg-neutral-800" : "bg-gray-50"}>
+                            <tr>
+                                <th className="text-left px-4 py-3">Title</th>
+                                <th className="text-left px-4 py-3">Type</th>
+                                <th className="text-left px-4 py-3">Price</th>
+                                <th className="text-left px-4 py-3">Added</th>
+                                <th className="text-right px-4 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className={dark ? "divide-y divide-neutral-800" : "divide-y divide-gray-200"}>
+                            {mine.map(l => (
+                                <tr key={l.id}>
+                                    <td className="px-4 py-3">
+                                        <Link to={`/lot/${l.id}`} className="underline">{l.title}</Link>
+                                        <div className={dark ? "text-neutral-400" : "text-gray-500"}>
+                                            {(l.category || "—")}{l.subcategory ? ` / ${l.subcategory}` : ""}
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-3 capitalize">{(l.type || "auction")}</td>
+                                    <td className="px-4 py-3">
+                                        {(l.type || "auction") === "auction"
+                                            ? formatCurrency(l.currentBid)
+                                            : (l.askingPrice != null ? formatCurrency(l.askingPrice) : "—")}
+                                    </td>
+                                    <td className="px-4 py-3">{l.createdAt ? formatDateTime(l.createdAt) : "—"}</td>
+                                    <td className="px-4 py-3 text-right">
+                                        <Link
+                                            to={`/edit/${l.id}`}
+                                            className="inline-flex items-center px-3 py-1.5 rounded-lg border hover:bg-black/5 dark:hover:bg-white/10"
+                                        >
+                                            Edit
+                                        </Link>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}
+
+
+// ————————————————————————————————————————————
+// Edit Listing: simple inline editor for title/desc/location/prices
+// ————————————————————————————————————————————
+function EditListing({ lots, setLots, user, dark }) {
+    const { id } = useParams();
+    const nav = useNavigate();
+    const location = useLocation?.() ?? { pathname: `/edit/${id}` };
+
+    const lot = (lots || []).find(l => l.id === id);
+    // Local form state
+    const [title, setTitle] = useState(lot.title || "");
+    const [description, setDescription] = useState(lot.description || "");
+    const [locationText, setLocationText] = useState(lot.location || "");
+    const [type, setType] = useState(lot.type || "auction");
+
+    // Prices based on type
+    const [currentBid, setCurrentBid] = useState(lot.currentBid ?? 0);
+    const [reservePrice, setReservePrice] = useState(lot.reservePrice ?? "");
+    const [askingPrice, setAskingPrice] = useState(lot.askingPrice ?? "");
+
+    const [error, setError] = useState("");
+    const [hasDefects, setHasDefects] = useState(Boolean(lot?.hasDefects));
+    const [engine, setEngine] = useState(lot?.specs?.engine || "");
+    const [weight, setWeight] = useState(lot?.specs?.weight || "");
+    const [power, setPower] = useState(lot?.specs?.power || "");
+    const [hours, setHours] = useState(typeof lot?.hours === "number" ? String(lot.hours) : (lot?.hours || ""));
+    const [_files, setFiles] = useState([]); // File objects
+    const [previews, setPreviews] = useState(Array.isArray(lot?.images) ? lot.images.slice() : []);
+    function handleFileChange(e) {
+        const list = Array.from(e.target.files || []);
+        const images = list.filter((f) => f.type.startsWith("image/"));
+
+        // Build URLs for new files only
+        const newUrls = images.map((f) => URL.createObjectURL(f));
+
+        // Append (don’t replace)
+        setFiles((prev) => [...prev, ...images]);
+        setPreviews((prev) => [...prev, ...newUrls]);
+
+        // Allow re-selecting the same file names
+        e.target.value = "";
+    }
+
+    function removePhoto(idx) {
+        setFiles((prev) => prev.filter((_, i) => i !== idx));
+        setPreviews((prev) => {
+            const url = prev[idx];
+            if (url) URL.revokeObjectURL(url);
+            return prev.filter((_, i) => i !== idx);
+        });
+    }
+
+    // Minimal validators (reuse yours if you have them)
+    const MIN = 250, STEP = 50;
+    const isStepAmount = (n) => Number.isInteger(n) && n % STEP === 0;
+
+
+    // Gate: not found
+    if (!lot) {
+        return (
+            <div className="max-w-4xl mx-auto px-4 py-12">
+                <div className={`rounded-2xl border p-6 ${dark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white"}`}>
+                    <p>Listing not found.</p>
+                    <button onClick={() => nav(-1)} className="mt-4 px-3 py-2 rounded-xl border">
+                        Go back
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // Gate: must be owner
+    const isOwner = user && ((lot.sellerEmail && lot.sellerEmail === user.email) || (lot.seller && lot.seller === user.email));
+    if (!user || !isOwner) {
+        return (
+            <div className="max-w-4xl mx-auto px-4 py-12">
+                <div className={`rounded-2xl border p-6 ${dark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white"}`}>
+                    <h1 className="text-xl font-semibold">Edit listing</h1>
+                    <p className={`mt-2 text-sm ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                        You don't have permission to edit this listing.
+                    </p>
+                    {!user && (
+                        <Link to="/signin" state={{ from: location }} className="inline-block mt-4 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm">
+                            Sign in
+                        </Link>
+                    )}
+                </div>
+            </div>
+        );
+    }
+    function validate() {
+        if (!title.trim()) return "Enter a title.";
+        if (!locationText.trim()) return "Enter a valid location.";
+
+        if (type === "auction") {
+            const n = Number(currentBid);
+            if (!Number.isFinite(n) || n < MIN) return `Minimum is \u20AC${MIN}.`;
+            if (!isStepAmount(n)) return `Amounts must be in \u20AC${STEP} steps (e.g. 250, 300, 350).`;
+            if (reservePrice !== "" && Number(reservePrice) <= n) return "Reserve must be greater than current bid.";
+        } else {
+            if (askingPrice === "" || Number(askingPrice) < MIN) return `Minimum is \u20AC${MIN}.`;
+            const a = Number(askingPrice);
+            if (!isStepAmount(a)) return `Amounts must be in \u20AC${STEP} steps (e.g. 250, 300, 350).`;
+        }
+        return "";
+    }
+
+    function onSave(e) {
+        e.preventDefault();
+        const err = validate();
+        if (err) { setError(err); return; }
+
+        setLots(prev => prev.map(l => { 
+            if (l.id !== lot.id) return l;
+            const specs = {};
+            if (engine.trim()) specs.engine = engine.trim();
+            if (weight.trim()) specs.weight = weight.trim();
+            if (power.trim()) specs.power = power.trim();
+            if (previews.length === 0) { setError("Add at least one photo."); return; }
+            const hoursNum = String(hours).trim() === "" ?
+                undefined : Number(hours.replace(/[^\d]/g, ""));
+            if (type === "auction") {
+                return {
+                    ...l,
+                    title: title.trim(),
+                    description: description.trim(),
+                    location: locationText.trim(),
+                    type: "auction",
+                    currentBid: Number(currentBid),
+                    reservePrice: reservePrice === "" ? undefined : Number(reservePrice),
+                    hasDefects,
+                    specs,
+                    hours: Number.isFinite(hoursNum) ? hoursNum : undefined,
+                    images: previews.slice(),
+                    askingPrice: undefined,
+                };
+            } else {
+                return {
+                    ...l,
+                    title: title.trim(),
+                    description: description.trim(),
+                    location: locationText.trim(),
+                    type: "sale",
+                    askingPrice: Number(askingPrice),
+                    currentBid: undefined,
+                    reservePrice: undefined,
+                    endsAt: undefined, // optional for sale
+                    hasDefects,
+                    specs,
+                    hours: Number.isFinite(hoursNum) ? hoursNum : undefined,
+                    images: previews.slice(),
+                };
+            }
+        }));
+        nav("/my-listings");
+    }
+
+    return (
+        <div className="max-w-3xl mx-auto px-4 py-10">
+            <div className={`rounded-2xl border p-6 ${dark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white"}`}>
+                <h1 className="text-2xl font-semibold">Edit listing</h1>
+                <p className={`text-sm mt-1 ${dark ? "text-neutral-400" : "text-gray-600"}`}>Update basic details and pricing.</p>
+
+                <form className="mt-6 space-y-6" onSubmit={onSave}>
+                    <div>
+                        <label className="text-xs font-medium">Title</label>
+                        <input
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-medium">Location</label>
+                        <input
+                            value={locationText}
+                            onChange={(e) => setLocationText(e.target.value)}
+                            className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-medium">Type</label>
+                        <select
+                            value={type}
+                            onChange={(e) => setType(e.target.value)}
+                            className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                        >
+                            <option value="auction">Auction</option>
+                            <option value="sale">For sale</option>
+                        </select>
+                    </div>
+
+                    {type === "auction" ? (
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs">Current bid (EUR)</label>
+                                <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    value={currentBid}
+                                    onChange={(e) => setCurrentBid(e.target.value)}
+                                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs">Reserve price (EUR, optional)</label>
+                                <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    value={reservePrice}
+                                    onChange={(e) => setReservePrice(e.target.value)}
+                                    placeholder="(optional)"
+                                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <div>
+                            <label className="text-xs">Asking price (EUR)</label>
+                            <input
+                                type="number"
+                                inputMode="numeric"
+                                value={askingPrice}
+                                onChange={(e) => setAskingPrice(e.target.value)}
+                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            />
+                        </div>
+                    )}
+                    {/* Defects */}
+                    <div>
+                        <label className="text-xs font-medium">Defects</label>
+                        <select
+                            value={hasDefects ? "With defects" : "Without defects"}
+                            onChange={(e) => setHasDefects(e.target.value === "With defects")}
+                            className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                        >
+                            <option>Without defects</option>
+                            <option>With defects</option>
+                        </select>
+                    </div>
+                    {/* Specifications */}
+                    <div>
+                        <label className="text-xs font-medium block mb-2">Specifications</label>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <input
+                                value={engine}
+                                onChange={(e) => setEngine(e.target.value)}
+                                placeholder="Engine (or leave blank)"
+                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            />
+                            <input
+                                value={power}
+                                onChange={(e) => setPower(e.target.value)}
+                                placeholder="Power (or leave blank)"
+                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            />
+                            <input
+                                value={weight}
+                                onChange={(e) => setWeight(e.target.value)}
+                                placeholder="Weight (or leave blank)"
+                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            />
+                            <input
+                                value={hours}
+                                onChange={(e) => setHours(e.target.value)}
+                                placeholder="Hours (number or leave blank)"
+                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            />
+                        </div>
+                    </div>
+                    {/* Photos */}
+                    <div>
+                        <label className="text-xs font-medium">Photos</label>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleFileChange}
+                            className={`mt-1 block w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border file:bg-gray-50 ${dark ? "file:border-neutral-700 file:bg-neutral-800 file:text-white" : "file:border-gray-200"
+                                }`}
+                        />
+
+                        {previews.length > 0 && (
+                            <>
+                                <div className={`mt-1 text-xs ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                                    {previews.length} photo{previews.length > 1 ? "s" : ""} selected
+                                </div>
+                                <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                    {previews.map((url, i) => (
+                                        <div key={`${url}-${i}`} className="relative group">
+                                            <img src={url} alt={`photo-${i}`} className="w-full h-24 object-cover rounded-lg border" />
+                                            <button
+                                                type="button"
+                                                onClick={() => removePhoto(i)}
+                                                className="absolute top-1 right-1 text-xs px-2 py-1 rounded bg-black/60 text-white opacity-0 group-hover:opacity-100 transition"
+                                                aria-label="Remove photo"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    <div>
+                        <label className="text-xs font-medium">Description</label>
+                        <textarea
+                            rows={4}
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                        />
+                    </div>
+
+                    {error && (
+                        <div className={dark ? "text-red-300 text-sm" : "text-red-600 text-sm"}>{error}</div>
+                    )}
+
+                    <div className="pt-2 flex gap-2">
+                        <button
+                            type="submit"
+                            className="px-4 py-2 rounded-xl text-sm bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                            Save changes
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => nav(-1)}
+                            className={`px-4 py-2 rounded-xl border text-sm ${dark ? "border-neutral-700" : ""}`}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
 }
 // helpers (near formatCurrency / prettyLeft)
 function getSellerLabel(lot) {
@@ -438,6 +870,14 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                         </Link>
                     </>
                 )}
+                {user && (
+                    <Link
+                        to="/my-listings"
+                        className="px-3 py-2 rounded-xl border text-sm hover:bg-black/5 dark:hover:bg-white/10"
+                    >
+                        My listings
+                    </Link>
+                )}
             </div>
         </header>
     );
@@ -451,6 +891,7 @@ function Filters({
     // country/category (interdependent)
     countries, country, setCountry, countryCounts,
     categories, category, setCategory, categoryCounts,
+    subcategories, subcategory, setSubcategory, subcategoryCounts,
     // condition / defects (interdependent)
     conditions, condition, setCondition, conditionCounts,
     defectsList, defects, setDefects, defectsCounts,
@@ -482,9 +923,27 @@ function Filters({
                     onChange={(e) => setCategory(e.target.value)}
                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                 >
-                    <option value="All">All ({<Count map={categoryCounts} />})</option>
-                    {categories.filter(c => c !== "All").map((c) => (
-                        <option key={c} value={c}>{c} ({categoryCounts.get(c) || 0})</option>
+                    {categories.map((c) => (
+                        <option key={c} value={c}>
+                            {c} {c !== "All" && categoryCounts?.get(c) ? `(${categoryCounts.get(c)})` : ""}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            {/* Subcategory (enabled when a specific Category is selected) */}
+            <div className="mt-3">
+                <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Subcategory</label>
+                <select
+                    value={subcategory}
+                    onChange={(e) => setSubcategory(e.target.value)}
+                    disabled={category === "All"}
+                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
+                        } ${category === "All" ? "opacity-60 cursor-not-allowed" : ""}`}
+                >
+                    {subcategories.map((s) => (
+                        <option key={s} value={s}>
+                            {s} {s !== "All" && subcategoryCounts?.get(s) ? `(${subcategoryCounts.get(s)})` : ""}
+                        </option>
                     ))}
                 </select>
             </div>
@@ -591,6 +1050,30 @@ function Filters({
                         ))}
                     </select>
                 </div>
+            </div>
+            {/* Reset Filters button */}
+            <div className="mt-4">
+                <button
+                    type="button"
+                    onClick={() => {
+                        setListingType("All");
+                        setCountry("All");
+                        setCategory("All");
+                        setSubcategory("All");
+                        setCondition("All");
+                        setDefects("All");
+                        setSortBy("endingSoon");
+                        setPriceMin(priceSteps[0]);
+                        setPriceMax(priceSteps[priceSteps.length - 1]);
+                        setQuery(""); // optional: reset search text if you have one
+                    }}
+                    className={`w-full py-2 rounded-xl font-medium ${dark
+                            ? "bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-white"
+                            : "bg-gray-100 border border-gray-300 hover:bg-gray-200 text-gray-800"
+                        }`}
+                >
+                    Reset filters
+                </button>
             </div>
         </Motion.div>
     );
@@ -796,7 +1279,7 @@ function Home({
     const [listingType, setListingType] = React.useState("All"); // All | auction | sale
     const [_tick, setTick] = useState(0);
     useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 1000); return () => clearInterval(t); }, []);
-   
+    const [subcategory, setSubcategory] = useState("All");
     // Base list: only text + price filters
     const baseFiltered = useMemo(() => {
         let out = lots.filter((l) =>
@@ -811,7 +1294,22 @@ function Home({
         });
 
         return out;
-    }, [lots, query, priceMin, priceMax, listingType ]);
+    }, [lots, query, priceMin, priceMax, listingType]);
+    // Subcategory list & counts (scoped to the currently selected Category)
+    const subcategoryCounts = useMemo(() => {
+        const m = new Map();
+        for (const l of baseFiltered) {
+            if (category !== "All" && l.category !== category) continue;
+            const key = l.subcategory || "Unspecified";
+            m.set(key, (m.get(key) || 0) + 1);
+        }
+        return m;
+    }, [baseFiltered, category]);
+
+    const subcategories = useMemo(() => {
+        const keys = Array.from(subcategoryCounts.keys()).sort();
+        return ["All", ...keys];
+    }, [subcategoryCounts]);
     
 
 
@@ -915,12 +1413,23 @@ function Home({
             const first = defectsList[1]; setDefects(first ?? "All");
         }
     }, [defectsList, defects, defectsCounts, setDefects]);
+    useEffect(() => {
+        if (subcategory !== "All" && !subcategoryCounts.has(subcategory)) {
+            setSubcategory("All");
+        }
+    }, [subcategoryCounts, subcategory]);
+
+    useEffect(() => {
+        // whenever the main category changes, reset subcategory to All
+        setSubcategory("All");
+    }, [category]);
 
     // Final list applies ALL four filters + sort
     const filtered = useMemo(() => {
         let out = baseFiltered;
         if (country !== "All") out = out.filter(l => getCountry(l.location) === country);
         if (category !== "All") out = out.filter(l => l.category === category);
+        if (subcategory !== "All") out = out.filter(l => (l.subcategory || "Unspecified") === subcategory);
         if (condition !== "All") out = out.filter(l => l.condition === condition);
         if (defects !== "All") out = out.filter(l => (l.hasDefects ? "With defects" : "Without defects") === defects);
 
@@ -939,7 +1448,7 @@ function Home({
             return tb - ta; // newest first
         });
         return out;
-    }, [baseFiltered, country, category, condition, defects, sortBy]);
+    }, [baseFiltered, country, category, subcategory, condition, defects, sortBy]);
     // --- Pagination ---
     const [pageSize, setPageSize] = React.useState(12); // 12 | 28 | 56
     const [page, setPage] = React.useState(1);
@@ -973,6 +1482,10 @@ function Home({
                     category={category}
                     setCategory={setCategory}
                     categoryCounts={categoryCounts}
+                    subcategories={subcategories}
+                    subcategory={subcategory}
+                    setSubcategory={setSubcategory}
+                    subcategoryCounts={subcategoryCounts}
                     countries={countries}
                     country={country}
                     setCountry={setCountry}
@@ -1544,7 +2057,7 @@ function LotDetail({ lots, setLots, dark, user }) {
 
                     {/* Key facts */}
                     <div className="mt-3 flex flex-wrap gap-2">
-                        <FactPill label="Category" value={lot.category} dark={dark} />
+                        <FactPill label="Category" value={`${lot.category}${lot.subcategory && lot.subcategory !== "All" ? " - " + lot.subcategory : ""}`} dark={dark} />
                         <FactPill label="Year" value={lot.year} dark={dark} />
                         <FactPill label="Hours" value={lot.hours?.toLocaleString?.()} dark={dark} />
                         <FactPill label="Condition" value={lot.condition} dark={dark} />
@@ -1976,14 +2489,14 @@ function Sell({ dark, user, lots, setLots }) {
     const nav = useNavigate();
 
     // ----- Options -----
-    const categoryOptions = ["Excavator", "Wheel loader", "Bulldozer", "Crane", "Backhoe", "Truck", "Tractor", "Grader", "Roller", "Forestry", "Forklift", "Telescopic handler", "Cherry picker", "Asphalt paver", "Miscellaneous"];
     const conditionOptions = ["Used", "New"];
     const defectsOptions = ["With defects", "Without defects"];
     const years = Array.from({ length: 2025 - 1900 + 1 }, (_, i) => 1900 + i).reverse();
 
     // ----- Form state -----
     const [title, setTitle] = React.useState("");
-    const [category, setCategory] = React.useState(categoryOptions[0]);
+    const [category, setCategory] = React.useState("");
+    const [subcategory, setSubcategory] = React.useState("");
     const [year, setYear] = React.useState(2015);
     const [condition, setCondition] = React.useState("Used");
     const [defects, setDefects] = React.useState("Without defects");
@@ -2073,7 +2586,21 @@ function Sell({ dark, user, lots, setLots }) {
 
     function validateFormOther() {
         if (!title.trim()) return "Please enter a machine name.";
-        if (!categoryOptions.includes(category)) return "Choose a valid category.";
+        const normalizedCat = (category || "").trim();
+        const validCategories = Object.keys(categoryStructure);
+        if (!normalizedCat || !validCategories.includes(normalizedCat)) {
+            return "Choose a valid category.";
+        }
+
+        // ? Subcategory is optional. If present (not "All"), it must exist under the selected category
+        const normalizedSub = (subcategory || "").trim();
+        if (
+            normalizedSub &&
+            normalizedSub !== "All" &&
+            !(categoryStructure[normalizedCat] || []).includes(normalizedSub)
+        ) {
+            return "Choose a valid subcategory.";
+        }
         const y = Number(year);
         if (!(y >= 1900 && y <= 2025)) return "Year must be between 1900 and 2025.";
         if (!conditionOptions.includes(condition)) return "Choose a valid condition.";
@@ -2081,6 +2608,7 @@ function Sell({ dark, user, lots, setLots }) {
         if (!location.trim()) return "Please enter a location (e.g., Riga, Latvia).";
         if (!previews || previews.length === 0) return "Please add at least one photo.";
         return "";
+
     }
 
     function onSubmit(e) {
@@ -2089,6 +2617,7 @@ function Sell({ dark, user, lots, setLots }) {
             setLocationErr("Please select a valid location from the list.");
             return;
         }
+
         // Re-run price validators
         if (listingType === "auction") {
         const se = validateStartPrice(startPrice);
@@ -2134,10 +2663,11 @@ function Sell({ dark, user, lots, setLots }) {
             condition,
             hasDefects: defects === "With defects",
             category,
+            subcategory,
             seller: displaySeller,
             sellerEmail: user?.email || null,
             sellerType,  
-            companyName: companyName?.trim() || "", 
+            companyName: sellerType === "Company" ? (companyName?.trim() || "") : "", 
             specs,
             description: description.trim(),
             documents: docList,
@@ -2173,25 +2703,53 @@ function Sell({ dark, user, lots, setLots }) {
                         </select>
                     </div>
                     {/* Basic */}
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
                         <div>
                             <label className="text-xs font-medium">Machine name</label>
                             <input
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 placeholder="e.g., 2018 Volvo L120 Wheel Loader"
-                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm tracking-wide leading-tight ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                             />
                         </div>
-                        <div>
-                            <label className="text-xs font-medium">Category</label>
-                            <select
-                                value={category}
-                                onChange={(e) => setCategory(e.target.value)}
-                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
-                            >
-                                {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-                            </select>
+                        {/* Category & Subcategory */}
+                        <div className="sm:col-span-2">
+                            <div>
+                                <label className="text-xs font-medium">Category</label>
+                                <select
+                                    value={category}
+                                    onChange={(e) => {
+                                        setCategory(e.target.value);
+                                        setSubcategory("");
+                                    }}
+                                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm tracking-wide leading-tight ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
+                                        }`}
+                                >
+                                    <option value="" disabled>Select a category</option>
+                                    {Object.keys(categoryStructure).map((main) => (
+                                        <option key={main} value={main}>{main}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-medium">Subcategory</label>
+                                <select
+                                    value={subcategory}
+                                    onChange={(e) => setSubcategory(e.target.value)}
+                                    disabled={!category || category === "All"}
+                                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm tracking-wide leading-tight ${dark
+                                            ? "bg-neutral-800 border-neutral-700 text-white"
+                                            : ""
+                                        } ${!category || category === "All" ? "opacity-60" : ""}`}
+                                >
+                                    <option value="">Select a subcategory</option>
+                                    {(categoryStructure[category] || []).map((sub) => (
+                                        <option key={sub} value={sub}>{sub}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     </div>
                     {/* Seller type */}
@@ -2200,9 +2758,14 @@ function Sell({ dark, user, lots, setLots }) {
                             <label className="text-xs font-medium">Seller type</label>
                             <select
                                 value={sellerType}
-                                onChange={(e) => setSellerType(e.target.value)}
+                                onChange={(e) => {
+                                    const v = e.target.value;
+                                    setSellerType(v);
+                                    if (v !== "Company") setCompanyName("");
+                                }}
                                 className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
-                                    }`}
+                                }`}
+                                
                             >
                                 <option value="Private person">Private person</option>
                                 <option value="Company">Company</option>
@@ -2213,20 +2776,22 @@ function Sell({ dark, user, lots, setLots }) {
                         </div>
 
                         {/* Only show when Company is selected */}
+                        {sellerType === "Company" && (
                         <div>
                             <label className="text-xs font-medium">Company name (optional)</label>
                             <input
                                 value={companyName}
                                 onChange={(e) => setCompanyName(e.target.value)}
                                 placeholder="e.g., UAB Heavybid"
-                                disabled={sellerType !== "Company"}
+                               
                                 className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
-                                    } ${sellerType !== "Company" ? "opacity-60" : ""}`}
+                                    }`}
                             />
                             <p className={`mt-1 text-xs ${dark ? "text-neutral-400" : "text-gray-500"}`}>
                                 If left blank, it will display as "Company".
                             </p>
-                        </div>
+                            </div>
+                        )}
                     </div>
                     <div className="grid sm:grid-cols-3 gap-4">
                         <div>
@@ -2569,6 +3134,12 @@ export default function App() {
                     <Route path="/lot/:id" element={<LotDetail lots={lots} setLots={setLots} dark={dark} user={user} />} />
                     <Route path="/signin" element={<SignIn dark={dark} setUser={setUser} />} />
                     <Route path="/signup" element={<SignUp dark={dark} setUser={setUser} />} />
+                    <Route path="/my-listings" element={
+                        <SellerDashboard lots={lots} user={user} dark={dark} />
+                    } />
+                    <Route path="/edit/:id" element={
+                        <EditListing lots={lots} setLots={setLots} user={user} dark={dark} />
+                    } />
                     <Route path="*" element={<div className="max-w-5xl mx-auto px-4 py-12">Not found</div>} />
                     <Route
                         path="/sell"
