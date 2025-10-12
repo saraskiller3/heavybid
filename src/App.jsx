@@ -3051,7 +3051,98 @@ function Sell({ dark, user, lots, setLots }) {
         </div>
     );
 }
+// Reusable shell for static pages
+function PageShell({ title, children, dark }) {
+    return (
+        <div className="max-w-4xl mx-auto px-4 py-10">
+            <div className={`rounded-2xl border p-6 ${dark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white"}`}>
+                <h1 className="text-2xl font-semibold">{title}</h1>
+                <div className={`mt-4 space-y-4 ${dark ? "text-neutral-300" : "text-gray-700"}`}>
+                    {children}
+                </div>
+            </div>
+        </div>
+    );
+}
 
+function AboutPage({ dark }) {
+    return (
+        <PageShell title="About us" dark={dark}>
+            <p>HeavyBid is a marketplace for heavy machinery across the EU & EEA, combining timed auctions with fixed-price listings.</p>
+            <p>We focus on transparency, verified sellers, and safe transactions.</p>
+        </PageShell>
+    );
+}
+
+function TermsPage({ dark }) {
+    return (
+        <PageShell title="Terms and conditions" dark={dark}>
+            <h2 className="text-lg font-semibold">1. Introduction</h2>
+            <p>These Terms govern your use of HeavyBid. By using the site, you agree to them.</p>
+            <h2 className="text-lg font-semibold">2. Accounts</h2>
+            <p>Keep your credentials secure. You are responsible for activity under your account.</p>
+            <h2 className="text-lg font-semibold">3. Listings & Bidding</h2>
+            <p>All bids are binding. Sellers must provide accurate item information.</p>
+            <h2 className="text-lg font-semibold">4. Liability</h2>
+            <p>HeavyBid is a venue. We are not a party to transactions between users.</p>
+        </PageShell>
+    );
+}
+
+function HowItWorksPage({ dark }) {
+    return (
+        <PageShell title="How does it work?" dark={dark}>
+            <ol className="list-decimal pl-5 space-y-2">
+                <li>Create an account and verify your email.</li>
+                <li>Browse auctions or fixed-price listings. Use filters for country, category, price.</li>
+                <li>For auctions: place bids in {"\u20AC"}50 steps (min {"\u20AC"}250). For sales: contact the seller.</li>
+                <li>After winning, arrange payment and pickup directly with the seller.</li>
+            </ol>
+        </PageShell>
+    );
+}
+
+function FAQPage({ dark }) {
+    return (
+        <PageShell title="F.A.Q" dark={dark}>
+            <div>
+                <h3 className="font-semibold">How do bidding steps work?</h3>
+                <p>Bids must be in {"\u20AC"}50 increments, starting at a minimum of {"\u20AC"}250.</p>
+            </div>
+            <div>
+                <h3 className="font-semibold">Can I list a machine for direct sale?</h3>
+                <p>Yes—choose "For sale" when creating a listing and set an asking price.</p>
+            </div>
+            <div>
+                <h3 className="font-semibold">Which countries are supported?</h3>
+                <p>EU & EEA countries for now.</p>
+            </div>
+        </PageShell>
+    );
+}
+
+function ContactsPage({ dark }) {
+    return (
+        <PageShell title="Contacts" dark={dark}>
+            <p>General inquiries: <a className="underline" href="mailto:info@heavybid.example">info@heavybid.example</a></p>
+            <p>Support: <a className="underline" href="mailto:support@heavybid.example">support@heavybid.example</a></p>
+            <p>Address: Example Street 1, 10111 Tallinn, Estonia</p>
+        </PageShell>
+    );
+}
+
+function PrivacyPage({ dark }) {
+    return (
+        <PageShell title="Privacy policy" dark={dark}>
+            <h2 className="text-lg font-semibold">What we collect</h2>
+            <p>Basic account info and usage data to operate the platform.</p>
+            <h2 className="text-lg font-semibold">How we use it</h2>
+            <p>To provide and improve services, detect abuse, and comply with law.</p>
+            <h2 className="text-lg font-semibold">Your rights</h2>
+            <p>You can request access, correction, or deletion of your personal data.</p>
+        </PageShell>
+    );
+}
 // ---- App root ----
 export default function App() {
     // Lots
@@ -3149,9 +3240,23 @@ export default function App() {
                             </RequireAuth>
                         }
                     />
+                    <Route path="/about" element={<AboutPage dark={dark} />} />
+                    <Route path="/terms" element={<TermsPage dark={dark} />} />
+                    <Route path="/how-it-works" element={<HowItWorksPage dark={dark} />} />
+                    <Route path="/faq" element={<FAQPage dark={dark} />} />
+                    <Route path="/contacts" element={<ContactsPage dark={dark} />} />
+                    <Route path="/privacy" element={<PrivacyPage dark={dark} />} />
                 </Routes>
                 <footer className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} border-t mt-8`}>
-                    <div className="max-w-7xl mx-auto px-4 py-6 text-sm flex flex-col sm:flex-row gap-2 sm:justify-between">
+                    <div className="max-w-7xl mx-auto px-4 py-6 text-sm flex flex-col gap-2">
+                        <div className="flex flex-wrap gap-x-4 gap-y-2">
+                            <Link to="/about" className="underline">About us</Link>
+                            <Link to="/how-it-works" className="underline">How does it work?</Link>
+                            <Link to="/faq" className="underline">F.A.Q</Link>
+                            <Link to="/contacts" className="underline">Contacts</Link>
+                            <Link to="/terms" className="underline">Terms & Conditions</Link>
+                            <Link to="/privacy" className="underline">Privacy Policy</Link>
+                        </div>
                         <div>{"\u00A9"} {new Date().getFullYear()} {" "} HeavyBid {" \u2014 "} Heavy machinery auctions</div>
                         <div>Contact: info@heavybid.example</div>
                     </div>
