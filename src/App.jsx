@@ -158,7 +158,57 @@ const MOCK_LISTINGS = [
 
 
 ];
+function Breadcrumbs({ lot, dark }) {
+    if (!lot) return null;
+    const hasSub = !!lot.subcategory && lot.subcategory !== "";
 
+    return (
+        <nav className="mb-4" aria-label="Breadcrumb">
+            <ol className="flex flex-wrap items-center gap-2 text-sm">
+                {/* Home */}
+                <li>
+                    <Link to="/" className="underline">Home</Link>
+                </li>
+
+                {/* › */}
+                <li className={dark ? "text-neutral-500" : "text-gray-500"}>{"\u203A"}</li>
+
+                {/* Category */}
+                <li>
+                    <Link
+                        to="/"
+                        state={{ category: lot.category }}
+                        className="underline"
+                    >
+                        {lot.category}
+                    </Link>
+                </li>
+
+                {/* Optional subcategory */}
+                {hasSub && (
+                    <>
+                        <li className={dark ? "text-neutral-500" : "text-gray-500"}>{"\u203A"}</li>
+                        <li>
+                            <Link
+                                to="/"
+                                state={{ category: lot.category, subcategory: lot.subcategory }}
+                                className="underline"
+                            >
+                                {lot.subcategory}
+                            </Link>
+                        </li>
+                    </>
+                )}
+
+                {/* Final separator + Title */}
+                <li className={dark ? "text-neutral-500" : "text-gray-500"}>{"\u203A"}</li>
+                <li className="font-medium truncate max-w-[60vw] sm:max-w-none">
+                    {lot.title}
+                </li>
+            </ol>
+        </nav>
+    );
+}
 // --- EU money helpers ---
 function formatEUIntegerString(digits) {
   // "42000" -> "42.000"
@@ -1280,6 +1330,17 @@ function Home({
     const [_tick, setTick] = useState(0);
     useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 1000); return () => clearInterval(t); }, []);
     const [subcategory, setSubcategory] = useState("All");
+    const location = useLocation();
+    useEffect(() => {
+        const cat = location.state?.category;
+        const sub = location.state?.subcategory;
+        if (cat) 
+            setCategory(cat);
+        if (sub && typeof setSubcategory === "function") 
+            setSubcategory(sub);
+            if (cat || sub)
+                window.history.replaceState({}, document.title, window.location.pathname); // clear state so it’s not reused
+    }, [location.state, setCategory, setSubcategory]);
     // Base list: only text + price filters
     const baseFiltered = useMemo(() => {
         let out = lots.filter((l) =>
@@ -1980,11 +2041,12 @@ function LotDetail({ lots, setLots, dark, user }) {
     }
 
     return (
-        <div className="max-w-7xl mx-auto px-4 py-8">
-            <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 mb-6">
+        <div className="max-w-7xl mx-auto px-4 py-8">            
+            <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 mb-2">
                 <ChevronLeft size={16} /> Back
             </button>
 
+            <Breadcrumbs lot={lot} dark={dark} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Gallery */}
                 <div className={`lg:col-span-2 rounded-2xl overflow-hidden border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"}`}>
@@ -3143,6 +3205,24 @@ function PrivacyPage({ dark }) {
         </PageShell>
     );
 }
+function NotFound({ dark }) {
+    return (
+        <div className="max-w-3xl mx-auto px-4 py-16">
+            <div className={`rounded-2xl border p-8 text-center ${dark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white"}`}>
+                <h1 className="text-3xl font-bold">Page not found</h1>
+                <p className={`mt-2 ${dark ? "text-neutral-400" : "text-gray-600"}`}>
+                    The page you’re looking for doesn’t exist or has moved.
+                </p>
+                <div className="mt-6 flex items-center justify-center gap-3">
+                    <a href="/" className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">Go to Home</a>
+                    <a href="/faq" className={`px-4 py-2 rounded-xl border ${dark ? "border-neutral-700" : "border-gray-200"}`}>
+                        Read FAQ
+                    </a>
+                </div>
+            </div>
+        </div>
+    );
+}
 // ---- App root ----
 export default function App() {
     // Lots
@@ -3246,6 +3326,7 @@ export default function App() {
                     <Route path="/faq" element={<FAQPage dark={dark} />} />
                     <Route path="/contacts" element={<ContactsPage dark={dark} />} />
                     <Route path="/privacy" element={<PrivacyPage dark={dark} />} />
+                    <Route path="*" element={<NotFound dark={dark} />} />
                 </Routes>
                 <footer className={`${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} border-t mt-8`}>
                     <div className="max-w-7xl mx-auto px-4 py-6 text-sm flex flex-col gap-2">
