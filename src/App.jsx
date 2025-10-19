@@ -158,6 +158,19 @@ const MOCK_LISTINGS = [
 
 
 ];
+function isoToDateInput(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+}
+function dateInputToIso(v) {
+    // v like "2025-10-18"; keep as-is or convert to ISO if you prefer:
+    return v || "";
+}
 function Breadcrumbs({ lot, dark }) {
     if (!lot) return null;
     const hasSub = !!lot.subcategory && lot.subcategory !== "";
@@ -444,7 +457,7 @@ function EditListing({ lots, setLots, user, dark }) {
     const [description, setDescription] = useState(lot.description || "");
     const [locationText, setLocationText] = useState(lot.location || "");
     const [type, setType] = useState(lot.type || "auction");
-
+    const [category, setCategory] = useState(lot.category || "");
     // Prices based on type
     const [currentBid, setCurrentBid] = useState(lot.currentBid ?? 0);
     const [reservePrice, setReservePrice] = useState(lot.reservePrice ?? "");
@@ -458,6 +471,25 @@ function EditListing({ lots, setLots, user, dark }) {
     const [hours, setHours] = useState(typeof lot?.hours === "number" ? String(lot.hours) : (lot?.hours || ""));
     const [_files, setFiles] = useState([]); // File objects
     const [previews, setPreviews] = useState(Array.isArray(lot?.images) ? lot.images.slice() : []);
+    // Truck-specific
+    const [make, setMake] = useState(lot.specs?.make ?? "");
+    const [model, setModel] = useState(lot.specs?.model ?? "");
+    const [vin, setVin] = useState(lot.specs?.vin ?? "");
+    const [mileageKm, setMileageKm] = useState(
+        lot.specs?.mileageKm != null ? String(lot.specs.mileageKm) : ""
+    );
+    const [emptyWeight, setEmptyWeight] = useState(
+        lot.specs?.emptyWeight != null ? String(lot.specs.emptyWeight) : ""
+    );
+    const [maxLoadWeight, setMaxLoadWeight] = useState(
+        lot.specs?.maxLoadWeight != null ? String(lot.specs.maxLoadWeight) : ""
+    );
+    const [axleConfig, setAxleConfig] = useState(lot.specs?.axleConfig ?? "");
+    const [emission, setEmission] = useState(lot.specs?.emission ?? "");
+    const [transmission, setTransmission] = useState(lot.specs?.transmission ?? "");
+    const [inspectionValidUntil, setInspectionValidUntil] = useState(
+        isoToDateInput(lot.specs?.inspectionValidUntil)
+    );
     function handleFileChange(e) {
         const list = Array.from(e.target.files || []);
         const images = list.filter((f) => f.type.startsWith("image/"));
@@ -539,52 +571,114 @@ function EditListing({ lots, setLots, user, dark }) {
 
     function onSave(e) {
         e.preventDefault();
+
         const err = validate();
         if (err) { setError(err); return; }
 
-        setLots(prev => prev.map(l => { 
-            if (l.id !== lot.id) return l;
-            const specs = {};
-            if (engine.trim()) specs.engine = engine.trim();
-            if (weight.trim()) specs.weight = weight.trim();
-            if (power.trim()) specs.power = power.trim();
-            if (previews.length === 0) { setError("Add at least one photo."); return; }
-            const hoursNum = String(hours).trim() === "" ?
-                undefined : Number(hours.replace(/[^\d]/g, ""));
-            if (type === "auction") {
-                return {
+        // Helper to parse integers from inputs like "12 345" etc.
+        const toNum = (val) => {
+            if (val === undefined || val === null) return undefined;
+            const s = String(val).trim();
+            if (s === "") return undefined;
+            const n = Number(s.replace(/[^\d.-]/g, ""));
+            return Number.isFinite(n) ? n : undefined;
+        };
+
+        setLots(prev =>
+            prev.map((l) => {
+                if (l.id !== lot.id) return l;
+
+                // If no photos, keep lot unchanged and show error
+                if (!previews || previews.length === 0) {
+                    setError("Add at least one photo.");
+                    return l;
+                }
+
+                // ---------- Build specs ----------
+                let specs = {};
+                if (category === "Trucks") {
+                    if (make) specs.make = make.trim();
+                    if (model) specs.model = model.trim();
+                    if (vin) specs.vin = vin.trim();
+
+                    const mile = toNum(mileageKm);
+                    if (mile !== undefined) specs.mileageKm = mile;
+
+                    const ew = toNum(emptyWeight);
+                    if (ew !== undefined) specs.emptyWeight = ew;
+
+                    const mw = toNum(maxLoadWeight);
+                    if (mw !== undefined) specs.maxLoadWeight = mw;
+
+                    if (axleConfig) specs.axleConfig = axleConfig;
+                    if (emission) specs.emission = emission;
+                    if (transmission) specs.transmission = transmission;
+                    if (inspectionValidUntil) specs.inspectionValidUntil = inspectionValidUntil; // yyyy-mm-dd as entered
+
+                } else {
+                    if (engine?.trim() && engine.trim() !== "-") specs.engine = engine.trim();
+                    if (power?.trim() && power.trim() !== "-") specs.power = power.trim();
+                    if (weight?.trim() && weight.trim() !== "-") specs.weight = weight.trim();
+                }
+
+                // ---------- Top-level fields ----------
+                const updatedBase = {
                     ...l,
                     title: title.trim(),
                     description: description.trim(),
                     location: locationText.trim(),
-                    type: "auction",
-                    currentBid: Number(currentBid),
-                    reservePrice: reservePrice === "" ? undefined : Number(reservePrice),
                     hasDefects,
                     specs,
-                    hours: Number.isFinite(hoursNum) ? hoursNum : undefined,
-                    images: previews.slice(),
-                    askingPrice: undefined,
+                    images: previews.slice(),   // keep order
+                    category,                   // if editable in your form
                 };
-            } else {
-                return {
-                    ...l,
-                    title: title.trim(),
-                    description: description.trim(),
-                    location: locationText.trim(),
-                    type: "sale",
-                    askingPrice: Number(askingPrice),
-                    currentBid: undefined,
-                    reservePrice: undefined,
-                    endsAt: undefined, // optional for sale
-                    hasDefects,
-                    specs,
-                    hours: Number.isFinite(hoursNum) ? hoursNum : undefined,
-                    images: previews.slice(),
-                };
-            }
-        }));
-        nav("/my-listings");
+
+                // Hours should be only for NON-trucks (trucks use mileageKm in specs)
+                if (category === "Truck") {
+                    updatedBase.hours = undefined;
+                } else {
+                    const hoursNum = toNum(hours);
+                    updatedBase.hours = hoursNum;
+                }
+
+                // ---------- Type-specific ----------
+                if (type === "auction") {
+                    const bidNum = toNum(currentBid);
+                    const resNum = reservePrice === "" ? undefined : toNum(reservePrice);
+
+                    return {
+                        ...updatedBase,
+                        type: "auction",
+                        currentBid: bidNum ?? l.currentBid ?? 0,
+                        reservePrice: resNum,
+                        askingPrice: undefined, // not for auction
+                        // keep existing endsAt unless you edit it elsewhere
+                        endsAt: l.endsAt,
+                    };
+                } else {
+                    const askNum = toNum(askingPrice);
+
+                    return {
+                        ...updatedBase,
+                        type: "sale",
+                        askingPrice: askNum ?? l.askingPrice ?? 0,
+                        currentBid: undefined,
+                        reservePrice: undefined,
+                        endsAt: undefined,
+                    };
+                }
+            })
+        );
+
+        // If we set an error above, don't navigate; you can also early-return here if you prefer.
+        // For simplicity, only navigate when no error is set:
+        if (!("current" in onSave)) onSave.current = {};
+        // give React one tick to apply setError (optional)
+        setTimeout(() => {
+            // if there is still an error displayed, do not navigate
+            // (you can track error state or simply rely on your validate() above)
+            nav("/my-listings");
+        }, 0);
     }
 
     return (
@@ -675,32 +769,63 @@ function EditListing({ lots, setLots, user, dark }) {
                     {/* Specifications */}
                     <div>
                         <label className="text-xs font-medium block mb-2">Specifications</label>
-                        <div className="grid sm:grid-cols-2 gap-4">
-                            <input
-                                value={engine}
-                                onChange={(e) => setEngine(e.target.value)}
-                                placeholder="Engine (or leave blank)"
-                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
-                            />
-                            <input
-                                value={power}
-                                onChange={(e) => setPower(e.target.value)}
-                                placeholder="Power (or leave blank)"
-                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
-                            />
-                            <input
-                                value={weight}
-                                onChange={(e) => setWeight(e.target.value)}
-                                placeholder="Weight (or leave blank)"
-                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
-                            />
-                            <input
-                                value={hours}
-                                onChange={(e) => setHours(e.target.value)}
-                                placeholder="Hours (number or leave blank)"
-                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
-                            />
-                        </div>
+
+                        {category === "Trucks" ? (
+                            <div className="grid sm:grid-cols-2 gap-4">
+                                <input value={make} onChange={(e) => setMake(e.target.value)} placeholder="Make (e.g., Volvo)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                                <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="Model (e.g., FH16)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+
+                                <input value={vin} onChange={(e) => setVin(e.target.value)} placeholder="VIN"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm sm:col-span-2 ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+
+                                <input type="number" inputMode="numeric" value={mileageKm}
+                                    onChange={(e) => setMileageKm(e.target.value)} placeholder="Mileage (km)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+
+                                <input value={emptyWeight} onChange={(e) => setEmptyWeight(e.target.value)} placeholder="Empty weight (kg)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                                <input value={maxLoadWeight} onChange={(e) => setMaxLoadWeight(e.target.value)} placeholder="Max load weight (kg)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+
+                                <select value={axleConfig} onChange={(e) => setAxleConfig(e.target.value)}
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}>
+                                    <option value="">Axle configuration</option>
+                                    <option>4x2</option><option>6x2</option><option>6x4</option>
+                                    <option>8x4</option><option>10x4</option><option>Other</option>
+                                </select>
+
+                                <select value={emission} onChange={(e) => setEmission(e.target.value)}
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}>
+                                    <option value="">Emission standard</option>
+                                    <option>Euro 3</option><option>Euro 4</option><option>Euro 5</option>
+                                    <option>Euro 6</option><option>Euro VI</option>
+                                </select>
+
+                                <select value={transmission} onChange={(e) => setTransmission(e.target.value)}
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}>
+                                    <option value="">Transmission type</option>
+                                    <option>Manual</option><option>Automatic</option><option>AMT</option>
+                                </select>
+
+                                <input type="date" value={inspectionValidUntil}
+                                    onChange={(e) => setInspectionValidUntil(e.target.value)}
+                                    placeholder="Technical inspection valid until"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm sm:col-span-2 ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                            </div>
+                        ) : (
+                            <div className="grid sm:grid-cols-2 gap-4">
+                                <input value={engine} onChange={(e) => setEngine(e.target.value)} placeholder="Engine (or -)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                                <input value={power} onChange={(e) => setPower(e.target.value)} placeholder="Power (or -)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                                <input value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Weight (or -)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                                <input value={hours} onChange={(e) => setHours(e.target.value)} placeholder="Hours (or -)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                            </div>
+                        )}
                     </div>
                     {/* Photos */}
                     <div>
@@ -1875,32 +2000,62 @@ function prettyLabel(key) {
 
 // Build ordered rows for the specs table
 function buildSpecRows(lot) {
+    if (!lot) return [];
     const rows = [];
-    // Defects label (derived)
-     const defectsLabel = lot.hasDefects ? "With defects" : "Without defects";
-    // Preferred order for key fields
-    rows.push(["Category", lot.category]);
-    rows.push(["Year", lot.year]);
-    rows.push(["Hours", lot.hours != null ? lot.hours.toLocaleString() : null]);
-    rows.push(["Condition", lot.condition]);
-    rows.push(["Seller", lot.seller]);
-    rows.push(["Defects", defectsLabel]);
+    const s = lot.specs || {};
+    const defectsLabel = lot.hasDefects ? "With defects" : "Without defects";
 
-    // Common technical fields (shown next if present)
-    if (lot.specs) {
-        const order = ["engine", "power", "weight"];
-        order.forEach((k) => lot.specs[k] && rows.push([prettyLabel(k), lot.specs[k]]));
+    const fmtInt = (n) =>
+    Number.isFinite(n) ? n.toLocaleString("de-DE") : n;
+    const fmtDate = (iso) => {
+        if (!iso) return iso;
+        const d = new Date(iso);
+        return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("de-DE");
+    };
 
-        // Any remaining spec keys (skip ones already added)
-        const skipped = new Set(order);
-        Object.entries(lot.specs).forEach(([k, v]) => {
-            if (!skipped.has(k) && v != null && v !== "") {
-                rows.push([prettyLabel(k), v]);
-            }
-        });
+    // ?? Truck-specific specs
+    if (lot.category === "Trucks") {
+        rows.push(["Category", lot.category]);
+        rows.push(["Condition", lot.condition]);
+        rows.push(["Seller", lot.seller]);
+        rows.push(["Defects", defectsLabel]);
+
+        if (s.make) rows.push(["Make", s.make]);
+        if (s.model) rows.push(["Model", s.model]);
+        if (s.vin) rows.push(["VIN", s.vin]);
+        if (s.mileageKm) rows.push(["Mileage", `${fmtInt(s.mileageKm)} km`]);
+        if (s.emptyWeight) rows.push(["Empty weight", `${fmtInt(s.emptyWeight)} kg`]);
+        if (s.maxLoadWeight) rows.push(["Max load weight", `${fmtInt(s.maxLoadWeight)} kg`]);
+        if (s.axleConfig) rows.push(["Axle configuration", s.axleConfig]);
+        if (s.emission) rows.push(["Emission standard", s.emission]);
+        if (s.transmission) rows.push(["Transmission", s.transmission]);
+        if (s.inspectionValidUntil)
+            rows.push(["Technical inspection valid until", fmtDate(s.inspectionValidUntil)]);
     }
 
-    // Filter out empty values
+    // ?? All other categories
+    else {
+        rows.push(["Category", lot.category]);
+        rows.push(["Year", lot.year]);
+        rows.push(["Hours", lot.hours != null ? lot.hours.toLocaleString("de-DE") : null]);
+        rows.push(["Condition", lot.condition]);
+        rows.push(["Seller", lot.seller]);
+        rows.push(["Defects", defectsLabel]);
+
+        if (lot.specs) {
+            const order = ["engine", "power", "weight"];
+            order.forEach((k) => s[k] && rows.push([prettyLabel(k), s[k]]));
+
+            const skipped = new Set(order);
+            Object.entries(s).forEach(([k, v]) => {
+                if (!skipped.has(k) && v != null && v !== "") {
+                    rows.push([prettyLabel(k), v]);
+                }
+            });
+        }
+    }
+
+    // Remove empty rows
     return rows.filter(([, v]) => v != null && v !== "");
 }
 function SpecTile({ label, value, dark }) {
@@ -2589,6 +2744,17 @@ function Sell({ dark, user, lots, setLots }) {
     const [listingType, setListingType] = React.useState("auction"); // "auction" | "sale"
     const [sellerType, setSellerType] = useState("Private person"); // "Private person" | "Company"
     const [companyName, setCompanyName] = useState("");
+    // Truck-specific
+    const [make, setMake] = useState("");
+    const [model, setModel] = useState("");
+    const [vin, setVin] = useState("");
+    const [mileageKm, setMileageKm] = useState("");
+    const [emptyWeight, setEmptyWeight] = useState("");
+    const [maxLoadWeight, setMaxLoadWeight] = useState("");
+    const [axleConfig, setAxleConfig] = useState("");
+    const [inspectionValidUntil, setInspectionValidUntil] = useState("");
+    const [emission, setEmission] = useState("");
+    const [transmission, setTransmission] = useState("");
 
     // Cleanup all previews on unmount
     React.useEffect(() => {
@@ -2697,10 +2863,24 @@ function Sell({ dark, user, lots, setLots }) {
         const bp = reservePrice === "" ? undefined : Number(reservePrice);
 
         // Specs object (omit "-" / blanks)
-        const specs = {};
-        if (engine && engine !== "-") specs.engine = engine;
-        if (power && power !== "-") specs.power = power;
-        if (weight && weight !== "-") specs.weight = weight;
+        let specs = {};
+        if (category === "Trucks") {
+            if (make) specs.make = make;
+            if (model) specs.model = model;
+            if (vin) specs.vin = vin;
+            if (mileageKm) specs.mileageKm = Number(mileageKm);
+            if (emptyWeight) specs.emptyWeight = Number(emptyWeight);
+            if (maxLoadWeight) specs.maxLoadWeight = Number(maxLoadWeight);
+            if (axleConfig) specs.axleConfig = axleConfig;
+            if (inspectionValidUntil) specs.inspectionValidUntil = inspectionValidUntil; // ISO date
+            if (emission) specs.emission = emission;
+            if (transmission) specs.transmission = transmission;
+        } else {
+            if (engine && engine !== "-") specs.engine = engine;
+            if (power && power !== "-") specs.power = power;
+            if (weight && weight !== "-") specs.weight = weight;
+            if (hours && hours !== "-" && hours !== "") specs.hours = Number(hours);
+        }
 
         const docList = documents.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean);
         const locLower = (location || "").toLowerCase();
@@ -2888,19 +3068,73 @@ function Sell({ dark, user, lots, setLots }) {
                         </div>
                     </div>
 
-                    {/* Specs */}
+                    {/* Specifications */}
                     <div>
                         <label className="text-xs font-medium block mb-2">Specifications</label>
-                        <div className="grid sm:grid-cols-2 gap-4">
-                            <input value={engine} onChange={(e) => setEngine(e.target.value)} placeholder="Engine (or -)"
-                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
-                            <input value={power} onChange={(e) => setPower(e.target.value)} placeholder="Power (or -)"
-                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
-                            <input value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Weight (or -)"
-                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
-                            <input value={hours} onChange={(e) => setHours(e.target.value)} placeholder="Hours (or -)"
-                                className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
-                        </div>
+
+                        {category === "Trucks" ? (
+                            <div className="grid sm:grid-cols-2 gap-4">
+                                {/* Make / Model */}
+                                <input value={make} onChange={(e) => setMake(e.target.value)} placeholder="Make (e.g., Volvo)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                                <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="Model (e.g., FH16)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+
+                                {/* VIN */}
+                                <input value={vin} onChange={(e) => setVin(e.target.value)} placeholder="VIN"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm sm:col-span-2 ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+
+                                {/* Mileage */}
+                                <input type="number" inputMode="numeric" value={mileageKm}
+                                    onChange={(e) => setMileageKm(e.target.value)} placeholder="Mileage (km)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+
+                                {/* Weights */}
+                                <input value={emptyWeight} onChange={(e) => setEmptyWeight(e.target.value)} placeholder="Empty weight (kg)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                                <input value={maxLoadWeight} onChange={(e) => setMaxLoadWeight(e.target.value)} placeholder="Max load weight (kg)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+
+                                {/* Axle / Emission / Transmission */}
+                                <select value={axleConfig} onChange={(e) => setAxleConfig(e.target.value)}
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}>
+                                    <option value="">Axle configuration</option>
+                                    <option>4x2</option><option>6x2</option><option>6x4</option>
+                                    <option>8x4</option><option>10x4</option><option>Other</option>
+                                </select>
+
+                                <select value={emission} onChange={(e) => setEmission(e.target.value)}
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}>
+                                    <option value="">Emission standard</option>
+                                    <option>Euro 3</option><option>Euro 4</option><option>Euro 5</option>
+                                    <option>Euro 6</option><option>Euro VI</option>
+                                </select>
+
+                                <select value={transmission} onChange={(e) => setTransmission(e.target.value)}
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}>
+                                    <option value="">Transmission type</option>
+                                    <option>Manual</option><option>Automatic</option><option>AMT</option>
+                                </select>
+
+                                {/* Inspection date */}
+                                <input type="date" value={inspectionValidUntil}
+                                    onChange={(e) => setInspectionValidUntil(e.target.value)}
+                                    placeholder="Technical inspection valid until"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm sm:col-span-2 ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                            </div>
+                        ) : (
+                            // ? your existing generic specs (engine, power, weight, hours)
+                            <div className="grid sm:grid-cols-2 gap-4">
+                                <input value={engine} onChange={(e) => setEngine(e.target.value)} placeholder="Engine (or -)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                                <input value={power} onChange={(e) => setPower(e.target.value)} placeholder="Power (or -)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                                <input value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Weight (or -)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                                <input value={hours} onChange={(e) => setHours(e.target.value)} placeholder="Hours (or -)"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                            </div>
+                        )}
                     </div>
 
                     {/* Description & documents */}
