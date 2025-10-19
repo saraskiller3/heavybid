@@ -723,20 +723,22 @@ function EditListing({ lots, setLots, user, dark }) {
                             <div>
                                 <label className="text-xs">Current bid (EUR)</label>
                                 <input
-                                    type="number"
+                                    type="text"
                                     inputMode="numeric"
                                     value={currentBid}
                                     onChange={(e) => setCurrentBid(e.target.value)}
+                                    onWheel={(e) => e.preventDefault()} // prevent changing number on scroll
                                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                                 />
                             </div>
                             <div>
                                 <label className="text-xs">Reserve price (EUR, optional)</label>
                                 <input
-                                    type="number"
+                                    type="text"
                                     inputMode="numeric"
                                     value={reservePrice}
                                     onChange={(e) => setReservePrice(e.target.value)}
+                                    onWheel={(e) => e.preventDefault()}
                                     placeholder="(optional)"
                                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                                 />
@@ -746,10 +748,11 @@ function EditListing({ lots, setLots, user, dark }) {
                         <div>
                             <label className="text-xs">Asking price (EUR)</label>
                             <input
-                                type="number"
+                                type="text"
                                 inputMode="numeric"
                                 value={askingPrice}
-                                onChange={(e) => setAskingPrice(e.target.value)}
+                                    onChange={(e) => setAskingPrice(e.target.value)}
+                                    onWheel={(e) => e.preventDefault()}
                                 className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                             />
                         </div>
@@ -3208,7 +3211,7 @@ function Sell({ dark, user, lots, setLots }) {
                             <div>
                                 <label className="text-xs">Starting price (EUR)</label>
                                 <input
-                                    type="number"
+                                    type="text"
                                     inputMode="numeric"
                                     value={startPrice}
                                     onChange={(e) => {
@@ -3224,7 +3227,8 @@ function Sell({ dark, user, lots, setLots }) {
                                     onBlur={(e) => {
                                         // If empty on blur, reset to "0"
                                         if (e.target.value === "") setStartPrice("0");
-                                    }}
+                                        }}
+                                        onWheel={(e) => e.preventDefault()}
                                     placeholder=""
                                     aria-invalid={Boolean(startErr)}
                                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
@@ -3242,7 +3246,7 @@ function Sell({ dark, user, lots, setLots }) {
                             <div>
                                 <label className="text-xs">Reserve price (EUR, optional)</label>
                                 <input
-                                    type="number"
+                                    type="text"
                                     inputMode="numeric"
                                     value={reservePrice}
                                     onChange={(e) => {
@@ -3257,7 +3261,8 @@ function Sell({ dark, user, lots, setLots }) {
                                     onBlur={(e) => {
                                         // If empty on blur, reset to "0"
                                         if (e.target.value === "") setReservePrice("");
-                                    }}
+                                        }}
+                                        onWheel={(e) => e.preventDefault()}
                                     placeholder="(optional)"
                                     aria-invalid={Boolean(reserveErr)}
                                     className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
@@ -3278,7 +3283,7 @@ function Sell({ dark, user, lots, setLots }) {
                         {/* For sale: Asking price only (reuse startPrice + validator) */}
                         <label className="text-xs">Asking price (EUR)</label>
                         <input
-                            type="number"
+                            type="text"
                             inputMode="numeric"
                             min={MIN}
                             step={STEP}
@@ -3289,7 +3294,8 @@ function Sell({ dark, user, lots, setLots }) {
                                 setStartPrice(v);
                                 setStartErr(validateStartPrice(v));
                             }}
-                            onBlur={(e) => { if (e.target.value === "") setStartPrice("0"); }}
+                                        onBlur={(e) => { if (e.target.value === "") setStartPrice("0"); }}
+                                        onWheel={(e) => e.preventDefault()}
                             aria-invalid={Boolean(startErr)}
                             className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""} ${startErr ? "border-red-500" : ""}`}
                                     />
