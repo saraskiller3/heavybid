@@ -1078,75 +1078,108 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                     {mobileOpen ? <X size={18} /> : <Menu size={18} />}
                 </button>
 
-            {/* Mobile sheet */}
-            {mobileOpen && (
-                <>
-                    {/* Clickable overlay to close */}
-                    <div
-                        className="fixed inset-0 z-[55]"
-                        onClick={() => setMobileOpen(false)}
-                    />
-                    <div
-                        className={`md:hidden fixed right-3 top-[64px] z-[60] w-[88%] max-w-xs rounded-2xl border shadow-lg ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"
-                            }`}
-                    >
-                        <div className="py-2">
-                            {user ? (
-                                <>
-                                    <Link
-                                        to="/sell"
-                                        className={menuItemClass}
-                                        onClick={() => setMobileOpen(false)}
-                                    >
-                                        Sell equipment
-                                    </Link>
-                                    <Link
-                                        to="/my-listings"
-                                        className={menuItemClass}
-                                        onClick={() => setMobileOpen(false)}
-                                    >
-                                        My listings
-                                    </Link>
-                                    <button
-                                        className={menuItemClass}
-                                        onClick={() => {
-                                            setUser(null);
-                                            setMobileOpen(false);
-                                            navigate("/");
-                                        }}
-                                    >
-                                        Sign out
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <Link
-                                        to="/signin"
-                                        className={menuItemClass}
-                                        onClick={() => setMobileOpen(false)}
-                                    >
-                                        Sign in
-                                    </Link>
-                                    <Link
-                                        to="/signup"
-                                        className={menuItemClass}
-                                        onClick={() => setMobileOpen(false)}
-                                    >
-                                        Sign up
-                                    </Link>
-                                    <Link
-                                        to="/signin"
-                                        className={menuItemClass}
-                                        onClick={() => setMobileOpen(false)}
-                                    >
-                                        Sell equipment
-                                    </Link>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </>
-            )}
+                <AnimatePresence>
+                    {mobileOpen && (
+                        <>
+                            {/* Overlay */}
+                            <Motion.div
+                                key="overlay"
+                                className="fixed inset-0 z-[55] bg-black/40"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setMobileOpen(false)}
+                            />
+
+                            {/* Slide-down panel under header */}
+                            <Motion.div
+                                key="sheet"
+                                className={`md:hidden fixed left-0 right-0 z-[60] mx-3 mt-[64px] rounded-2xl border shadow-lg ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"
+                                    }`}
+                                initial={{ y: -12, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                exit={{ y: -12, opacity: 0 }}
+                                transition={{ duration: 0.18, ease: "easeOut" }}
+                            >
+                                <nav className="py-2">
+                                    {/* vertical list */}
+                                    <ul className="flex flex-col">
+                                        {user ? (
+                                            <>
+                                                <li>
+                                                    <Link
+                                                        to="/sell"
+                                                        onClick={() => setMobileOpen(false)}
+                                                        className={`block w-full text-left px-4 py-3 text-sm rounded-xl ${dark ? "hover:bg-neutral-800" : "hover:bg-gray-100"
+                                                            }`}
+                                                    >
+                                                        Sell equipment
+                                                    </Link>
+                                                </li>
+                                                <li>
+                                                    <Link
+                                                        to="/my-listings"
+                                                        onClick={() => setMobileOpen(false)}
+                                                        className={`block w-full text-left px-4 py-3 text-sm rounded-xl ${dark ? "hover:bg-neutral-800" : "hover:bg-gray-100"
+                                                            }`}
+                                                    >
+                                                        My listings
+                                                    </Link>
+                                                </li>
+                                                <li>
+                                                    <button
+                                                        onClick={() => {
+                                                            setUser(null);
+                                                            setMobileOpen(false);
+                                                            navigate("/");
+                                                        }}
+                                                        className={`block w-full text-left px-4 py-3 text-sm rounded-xl ${dark ? "hover:bg-neutral-800" : "hover:bg-gray-100"
+                                                            }`}
+                                                    >
+                                                        Sign out
+                                                    </button>
+                                                </li>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <li>
+                                                    <Link
+                                                        to="/signin"
+                                                        onClick={() => setMobileOpen(false)}
+                                                        className={`block w-full text-left px-4 py-3 text-sm rounded-xl ${dark ? "hover:bg-neutral-800" : "hover:bg-gray-100"
+                                                            }`}
+                                                    >
+                                                        Sign in
+                                                    </Link>
+                                                </li>
+                                                <li>
+                                                    <Link
+                                                        to="/signup"
+                                                        onClick={() => setMobileOpen(false)}
+                                                        className={`block w-full text-left px-4 py-3 text-sm rounded-xl ${dark ? "hover:bg-neutral-800" : "hover:bg-gray-100"
+                                                            }`}
+                                                    >
+                                                        Sign up
+                                                    </Link>
+                                                </li>
+                                                <li>
+                                                    <Link
+                                                        to="/signin"
+                                                        onClick={() => setMobileOpen(false)}
+                                                        className={`block w-full text-left px-4 py-3 text-sm rounded-xl ${dark ? "hover:bg-neutral-800" : "hover:bg-gray-100"
+                                                            }`}
+                                                    >
+                                                        Sell equipment
+                                                    </Link>
+                                                </li>
+                                            </>
+                                        )}
+                                    </ul>
+                                </nav>
+                            </Motion.div>
+                        </>
+                    )}
+                </AnimatePresence>
 
             </div>
         </header>
