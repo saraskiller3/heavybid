@@ -1003,6 +1003,7 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                 </button>
 
                 {/* Sell equipment routes to /sell if signed in, /signin if not */}
+                <div className="hidden md:flex items-center gap-2">
                 {user ? (
                     <Link
                         to="/sell"
@@ -1066,7 +1067,8 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                     >
                         My listings
                     </Link>
-                )}
+                    )}
+                </div>
                 {/* Mobile hamburger (md hidden) */}
                 <button
                     className="md:hidden p-2 rounded-xl border"
