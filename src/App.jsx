@@ -1071,11 +1071,13 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                 </div>
                 {/* Mobile hamburger (md hidden) */}
                 <button
-                    className="md:hidden p-2 rounded-xl border"
+                    className={`md:hidden relative z-[100] p-2 rounded-xl border ${dark ? "border-neutral-700 text-white hover:bg-neutral-800" : "border-gray-300 text-gray-800 hover:bg-gray-100"}`}
                     onClick={() => setMobileOpen((v) => !v)}
                     aria-label="Open menu"
                 >
-                    {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+                    {mobileOpen ? <X size={22}
+                        strokeWidth={2.2} /> : <Menu size={18}
+                            strokeWidth={2.2}  />}
                 </button>
 
                 <AnimatePresence>
