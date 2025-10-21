@@ -5,7 +5,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Link, useParams, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { motion as Motion, AnimatePresence } from "framer-motion";
-import { Search, Clock, MapPin, Sun, Moon, ChevronLeft, CheckCircle2, Mail, Lock, Eye, EyeOff, ChevronRight, X } from "lucide-react";
+import { Search, Clock, MapPin, Sun, Moon, ChevronLeft, CheckCircle2, Mail, Lock, Eye, EyeOff, ChevronRight, X, Menu } from "lucide-react";
 import LocationAutocompleteOSM from "./components/LocationAutocompleteOSM";
 import { CountrySelect } from "./components/CountrySelect";
 import { categoryStructure } from "./data/categories";  
@@ -935,6 +935,7 @@ function prettyLeft(iso) {
 
 // ---- Layout & shared UI ----
 function Header({ query, setQuery, dark, setDark, user, setUser }) {
+    const [mobileOpen, setMobileOpen] = React.useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const fromForHeader = location.pathname.startsWith("/lot/")
@@ -943,6 +944,15 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
             ? "/sell"                   // return to sell
             : "/";                      // otherwise home
     const isHome = location.pathname === "/";
+    // Close the menu whenever route changes (optional safeguard)
+    React.useEffect(() => {
+        const close = () => setMobileOpen(false);
+        window.addEventListener("popstate", close);
+        return () => window.removeEventListener("popstate", close);
+    }, []);
+
+    const menuItemClass = `w-full text-left px-4 py-3 text-sm rounded-xl ${dark ? "hover:bg-neutral-800" : "hover:bg-gray-100"
+        }`;
     return (
         <header
             className={`sticky top-0 z-[9999] border-b ${dark ? "bg-neutral-900/80 text-white" : "bg-white/80"
@@ -953,6 +963,7 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                     to="/"
                     className={`w-10 h-10 rounded-2xl grid place-items-center font-extrabold ${dark ? "bg-blue-500 text-white" : "bg-blue-600 text-white"
                         }`}
+                    onClick={() => setMobileOpen(false)}
                 >
                     HB
                 </Link>
@@ -1056,6 +1067,85 @@ function Header({ query, setQuery, dark, setDark, user, setUser }) {
                         My listings
                     </Link>
                 )}
+                {/* Mobile hamburger (md hidden) */}
+                <button
+                    className="md:hidden p-2 rounded-xl border"
+                    onClick={() => setMobileOpen((v) => !v)}
+                    aria-label="Open menu"
+                >
+                    {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+                </button>
+
+            {/* Mobile sheet */}
+            {mobileOpen && (
+                <>
+                    {/* Clickable overlay to close */}
+                    <div
+                        className="fixed inset-0 z-[55]"
+                        onClick={() => setMobileOpen(false)}
+                    />
+                    <div
+                        className={`md:hidden fixed right-3 top-[64px] z-[60] w-[88%] max-w-xs rounded-2xl border shadow-lg ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"
+                            }`}
+                    >
+                        <div className="py-2">
+                            {user ? (
+                                <>
+                                    <Link
+                                        to="/sell"
+                                        className={menuItemClass}
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        Sell equipment
+                                    </Link>
+                                    <Link
+                                        to="/my-listings"
+                                        className={menuItemClass}
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        My listings
+                                    </Link>
+                                    <button
+                                        className={menuItemClass}
+                                        onClick={() => {
+                                            setUser(null);
+                                            setMobileOpen(false);
+                                            navigate("/");
+                                        }}
+                                    >
+                                        Sign out
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <Link
+                                        to="/signin"
+                                        className={menuItemClass}
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        Sign in
+                                    </Link>
+                                    <Link
+                                        to="/signup"
+                                        className={menuItemClass}
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        Sign up
+                                    </Link>
+                                    <Link
+                                        to="/signin"
+                                        className={menuItemClass}
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        Sell equipment
+                                    </Link>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
+
             </div>
         </header>
     );
