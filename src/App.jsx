@@ -16,6 +16,8 @@ const MOCK_LISTINGS = [
     {
         id: "EX2001",
         type: "auction",
+        make: "Komatsu",
+        model: "PC210-8",
         title: "2014 Komatsu PC210-8 Excavator",
         location: "Riga, Latvia",
         coords: { lat: 56.9496, lng: 24.1052 },
@@ -39,12 +41,13 @@ const MOCK_LISTINGS = [
         sellerEmail: "seller1@example.com",
         specs: { weight: "22,000 kg", engine: "Komatsu SAA6D107E-1", power: "123 kW" },
         description: "Well maintained PC210 with full service records. New tracks in 2022. Ready to work.",
-        documents: ["Service history", "CE certificate"],
         createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     },
     {
         id: "WL453",
         type: "auction",
+        make: "Volvo",
+        model: "L120",
         title: "2018 Volvo L120 Wheel Loader",
         location: "Vilnius, Lithuania",
         coords: { lat: 54.6872, lng: 25.2797 },
@@ -68,12 +71,13 @@ const MOCK_LISTINGS = [
         sellerEmail: "seller2@example.com",
         specs: { weight: "20,700 kg", engine: "Volvo D8J", power: "191 kW" },
         description: "Low hours L120. Stage V, aircon, hydraulic quick coupler.",
-        documents: ["User manual"],
         createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     },
     {
         id: "CR300",
         type: "auction",
+        make: "Caterpillar",
+        model: "D6",
         title: "2016 Caterpillar D6 Bulldozer",
         location: "Tallinn, Estonia",
         coords: { lat: 59.4370, lng: 24.7536 },
@@ -96,12 +100,13 @@ const MOCK_LISTINGS = [
         sellerEmail: "seller3@example.com",
         specs: { weight: "23,000 kg", engine: "Cat C9.3", power: "153 kW" },
         description: "Strong D6 with ripper and blade; recent hydraulics check.",
-        documents: ["CE certificate", "Inspection report"],
         createdAt: new Date(Date.now() -  4 * 60 * 60 * 1000).toISOString(),
     },
     {
         id: "TR555",
         type: "auction",
+        make: "Other",
+        model: "Other",
         title: "Hadrian X bricklayer",
         location: "Berlin, Germany",
         coords: { lat: 52.5200, lng: 13.4050 }, 
@@ -125,12 +130,13 @@ const MOCK_LISTINGS = [
         sellerEmail: "seller4@example.com",
         specs: { weight: "23,000 kg", engine: "Volvo 555", power: "250 kW" },
         description: "Brand new, factory warranty, new in Europe",
-        documents: ["CE certificate", "Inspection report", "Customs clearance", "5 year factory warranty"],
         createdAt: new Date().toISOString(),
     },
     {
         id: "FS1001",
         type: "sale",                    // ?? fixed-price listing
+        make: "JCB",
+        model: "3CX",
         title: "2020 JCB 3CX Backhoe Loader",
         location: "Alytus, Lithuania",
         coords: { lat: 54.3964, lng: 24.0349 },
@@ -152,7 +158,6 @@ const MOCK_LISTINGS = [
         sellerEmail: "seller5@example.com",
         specs: { engine: "JCB 444", power: "68 kW", weight: "8,000 kg" },
         description: "Clean 3CX, quick coupler, 4-in-1 bucket.",
-        documents: ["CE certificate"],
         createdAt: new Date(Date.now() - 24 * 24 * 60 * 60 * 1000).toISOString(),
     },
 
@@ -345,6 +350,7 @@ function reserveInfo(lot) {
     const met = has ? Number(lot.currentBid ?? 0) >= lot.reservePrice : false;
     return { has, met };
 }
+
 function formatDateTime(iso) {
     if (!iso) return "";
     const d = new Date(iso);
@@ -457,7 +463,9 @@ function EditListing({ lots, setLots, user, dark }) {
     const [description, setDescription] = useState(lot.description || "");
     const [locationText, setLocationText] = useState(lot.location || "");
     const [type, setType] = useState(lot.type || "auction");
-    const [category, setCategory] = useState(lot.category || "");
+    const [make, setMake] = useState(lot.make || "");
+    const [model, setModel] = useState(lot.model || "");
+    const [category, setCategory] = useState(lot.category || "");  // for truck-specific fields
     // Prices based on type
     const [currentBid, setCurrentBid] = useState(lot.currentBid ?? 0);
     const [reservePrice, setReservePrice] = useState(lot.reservePrice ?? "");
@@ -472,8 +480,6 @@ function EditListing({ lots, setLots, user, dark }) {
     const [_files, setFiles] = useState([]); // File objects
     const [previews, setPreviews] = useState(Array.isArray(lot?.images) ? lot.images.slice() : []);
     // Truck-specific
-    const [make, setMake] = useState(lot.specs?.make ?? "");
-    const [model, setModel] = useState(lot.specs?.model ?? "");
     const [vin, setVin] = useState(lot.specs?.vin ?? "");
     const [mileageKm, setMileageKm] = useState(
         lot.specs?.mileageKm != null ? String(lot.specs.mileageKm) : ""
@@ -490,6 +496,7 @@ function EditListing({ lots, setLots, user, dark }) {
     const [inspectionValidUntil, setInspectionValidUntil] = useState(
         isoToDateInput(lot.specs?.inspectionValidUntil)
     );
+    const dateRef = React.useRef(null);
     function handleFileChange(e) {
         const list = Array.from(e.target.files || []);
         const images = list.filter((f) => f.type.startsWith("image/"));
@@ -504,7 +511,17 @@ function EditListing({ lots, setLots, user, dark }) {
         // Allow re-selecting the same file names
         e.target.value = "";
     }
+    function openDatePicker() {
+        // Opens the native picker (Chrome/Edge/Safari). Fallback: focus.
+        if (dateRef.current?.showPicker) dateRef.current.showPicker();
+        else dateRef.current?.focus();
+    }
 
+    function formatDateEU(iso) {
+        if (!iso) return "";
+        const [y, m, d] = iso.split("-");
+        return `${d}.${m}.${y}`; // DD.MM.YYYY
+    }
     function removePhoto(idx) {
         setFiles((prev) => prev.filter((_, i) => i !== idx));
         setPreviews((prev) => {
@@ -554,6 +571,7 @@ function EditListing({ lots, setLots, user, dark }) {
     }
     function validate() {
         if (!title.trim()) return "Enter a title.";
+        if (!make.trim() || !model.trim()) return "Enter both make and model.";
         if (!locationText.trim()) return "Enter a valid location.";
 
         if (type === "auction") {
@@ -597,8 +615,6 @@ function EditListing({ lots, setLots, user, dark }) {
                 // ---------- Build specs ----------
                 let specs = {};
                 if (category === "Trucks") {
-                    if (make) specs.make = make.trim();
-                    if (model) specs.model = model.trim();
                     if (vin) specs.vin = vin.trim();
 
                     const mile = toNum(mileageKm);
@@ -630,11 +646,13 @@ function EditListing({ lots, setLots, user, dark }) {
                     hasDefects,
                     specs,
                     images: previews.slice(),   // keep order
-                    category,                   // if editable in your form
+                    make: make?.trim() || undefined,
+                    model: model?.trim() || undefined,
+                                       
                 };
 
                 // Hours should be only for NON-trucks (trucks use mileageKm in specs)
-                if (category === "Truck") {
+                if (category === "Trucks") {
                     updatedBase.hours = undefined;
                 } else {
                     const hoursNum = toNum(hours);
@@ -695,8 +713,28 @@ function EditListing({ lots, setLots, user, dark }) {
                             onChange={(e) => setTitle(e.target.value)}
                             className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                         />
-                    </div>
 
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-medium">Make</label>
+                            <input
+                                value={make}
+                                onChange={(e) => setMake(e.target.value)}
+                                placeholder="e.g., Volvo, Caterpillar"
+                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium">Model</label>
+                            <input
+                                value={model}
+                                onChange={(e) => setModel(e.target.value)}
+                                placeholder="e.g., L120, D6R"
+                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                            />
+                        </div>
+                    </div>
                     <div>
                         <label className="text-xs font-medium">Location</label>
                         <input
@@ -812,10 +850,38 @@ function EditListing({ lots, setLots, user, dark }) {
                                     <option>Manual</option><option>Automatic</option><option>AMT</option>
                                 </select>
 
-                                <input type="date" value={inspectionValidUntil}
-                                    onChange={(e) => setInspectionValidUntil(e.target.value)}
-                                    placeholder="Technical inspection valid until"
-                                    className={`w-full border rounded-xl px-3 py-2 text-sm sm:col-span-2 ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                                <div>
+                                    <label className="text-xs font-medium">Technical inspection valid until</label>
+
+                                    <div className="relative mt-1">
+                                        {/* Visible fake input (clickable) */}
+                                        <button
+                                            type="button"
+                                            onClick={openDatePicker}
+                                            className={`w-full text-left border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : "bg-white"
+                                                }`}
+                                        >
+                                            {inspectionValidUntil ? (
+                                                <span>{formatDateEU(inspectionValidUntil)}</span>
+                                            ) : (
+                                                <span className={dark ? "text-neutral-400" : "text-gray-500"}>
+                                                    Technical inspection valid until
+                                                </span>
+                                            )}
+                                        </button>
+
+                                        {/* Hidden real date input */}
+                                        <input
+                                            ref={dateRef}
+                                            type="date"
+                                            value={inspectionValidUntil}
+                                            onChange={(e) => setInspectionValidUntil(e.target.value)}
+                                            className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+                                            tabIndex={-1}
+                                            aria-hidden="true"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         ) : (
                             <div className="grid sm:grid-cols-2 gap-4">
@@ -1464,6 +1530,11 @@ function Card({ lot, dark, user }) {
                 {/* Body */}
                 <div className="p-5 flex-1 flex flex-col">
                     <h3 className="font-semibold text-lg leading-snug line-clamp-2">{lot.title}</h3>
+                    {(lot.make || lot.model) && (
+                        <p className={`text-xs mt-0.5 ${dark ? "text-neutral-400" : "text-gray-500"}`}>
+                            {lot.make || ""}{lot.make && lot.model ? " \u00B7 " : ""}{lot.model || ""}
+                        </p>
+                    )}
                     <p
                         className={`text-sm mt-1 flex items-center gap-1 ${dark ? "text-neutral-400" : "text-gray-500"
                             }`}
@@ -2146,12 +2217,11 @@ function buildSpecRows(lot) {
     // ?? Truck-specific specs
     if (lot.category === "Trucks") {
         rows.push(["Category", lot.category]);
+        rows.push(["Make", lot.make]);
+        rows.push(["Model", lot.model]);
         rows.push(["Condition", lot.condition]);
         rows.push(["Seller", lot.seller]);
         rows.push(["Defects", defectsLabel]);
-
-        if (s.make) rows.push(["Make", s.make]);
-        if (s.model) rows.push(["Model", s.model]);
         if (s.vin) rows.push(["VIN", s.vin]);
         if (s.mileageKm) rows.push(["Mileage", `${fmtInt(s.mileageKm)} km`]);
         if (s.emptyWeight) rows.push(["Empty weight", `${fmtInt(s.emptyWeight)} kg`]);
@@ -2166,6 +2236,8 @@ function buildSpecRows(lot) {
     // ?? All other categories
     else {
         rows.push(["Category", lot.category]);
+        rows.push(["Make", lot.make]);
+        rows.push(["Model", lot.model]);
         rows.push(["Year", lot.year]);
         rows.push(["Hours", lot.hours != null ? lot.hours.toLocaleString("de-DE") : null]);
         rows.push(["Condition", lot.condition]);
@@ -2412,6 +2484,8 @@ function LotDetail({ lots, setLots, dark, user }) {
                         <FactPill label="Engine" value={lot.specs?.engine} dark={dark} />
                         <FactPill label="Power" value={lot.specs?.power} dark={dark} />
                         <FactPill label="Weight" value={lot.specs?.weight} dark={dark} />
+                        <FactPill label="Make" value={lot.make} dark={dark} />
+                        <FactPill label="Model" value={lot.model} dark={dark} />
                     </div>
                     {/* ? FULL-WIDTH SPECIFICATIONS — SINGLE LIST */}
                     <div className={`rounded-2xl border ${dark ? "bg-neutral-900 border-neutral-800" : "bg-white"} overflow-hidden`}>
@@ -2441,14 +2515,7 @@ function LotDetail({ lots, setLots, dark, user }) {
                             <h3 className="font-semibold text-lg">Description</h3>
                             <p className="mt-3 text-sm leading-relaxed opacity-90">{lot.description}</p>
 
-                            {lot.documents?.length > 0 && (
-                                <div className="mt-4">
-                                    <h4 className="text-sm font-medium mb-2">Documents</h4>
-                                    <ul className="list-disc pl-5 text-sm opacity-90">
-                                        {lot.documents.map((d) => <li key={d}>{d}</li>)}
-                                    </ul>
-                                </div>
-                            )}
+                            
                         </div>
                     </div>
 
@@ -2852,9 +2919,11 @@ function Sell({ dark, user, lots, setLots }) {
     const [power, setPower] = React.useState("");
     const [weight, setWeight] = React.useState("");
     const [hours, setHours] = React.useState("");
+    const [make, setMake] = React.useState("");
+    const [model, setModel] = React.useState("");
 
     const [description, setDescription] = React.useState("");
-    const [documents, setDocuments] = React.useState("");
+    
     const [location, setLocation] = React.useState("");
     const [coords, setCoords] = React.useState(null);
     const [locationErr, setLocationErr] = React.useState("");
@@ -2875,14 +2944,13 @@ function Sell({ dark, user, lots, setLots }) {
     const [sellerType, setSellerType] = useState("Private person"); // "Private person" | "Company"
     const [companyName, setCompanyName] = useState("");
     // Truck-specific
-    const [make, setMake] = useState("");
-    const [model, setModel] = useState("");
     const [vin, setVin] = useState("");
     const [mileageKm, setMileageKm] = useState("");
     const [emptyWeight, setEmptyWeight] = useState("");
     const [maxLoadWeight, setMaxLoadWeight] = useState("");
     const [axleConfig, setAxleConfig] = useState("");
     const [inspectionValidUntil, setInspectionValidUntil] = useState("");
+    const dateRef = React.useRef(null);
     const [emission, setEmission] = useState("");
     const [transmission, setTransmission] = useState("");
 
@@ -2906,7 +2974,17 @@ function Sell({ dark, user, lots, setLots }) {
         if (!isMultipleOf50(n)) return "Starting price must increase in \u20AC50 steps (e.g., 250, 300, 350...).";
         return "";
     }
+    function openDatePicker() {
+        // Opens the native picker (Chrome/Edge/Safari). Fallback: focus.
+        if (dateRef.current?.showPicker) dateRef.current.showPicker();
+        else dateRef.current?.focus();
+    }
 
+    function formatDateEU(iso) {
+        if (!iso) return "";
+        const [y, m, d] = iso.split("-");
+        return `${d}.${m}.${y}`; // DD.MM.YYYY
+    }
     function validateReservePrice(v, startV) {
         if (v === "" || v == null) return ""; // optional
         const n = Number(v);
@@ -2975,7 +3053,10 @@ function Sell({ dark, user, lots, setLots }) {
             setLocationErr("Please select a valid location from the list.");
             return;
         }
-
+        if (!make.trim() || !model.trim()) {
+            setError("Please enter both make and model.");
+            return;
+        }
         // Re-run price validators
         if (listingType === "auction") {
         const se = validateStartPrice(startPrice);
@@ -2995,8 +3076,6 @@ function Sell({ dark, user, lots, setLots }) {
         // Specs object (omit "-" / blanks)
         let specs = {};
         if (category === "Trucks") {
-            if (make) specs.make = make;
-            if (model) specs.model = model;
             if (vin) specs.vin = vin;
             if (mileageKm) specs.mileageKm = Number(mileageKm);
             if (emptyWeight) specs.emptyWeight = Number(emptyWeight);
@@ -3012,7 +3091,7 @@ function Sell({ dark, user, lots, setLots }) {
             if (hours && hours !== "-" && hours !== "") specs.hours = Number(hours);
         }
 
-        const docList = documents.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean);
+        
         const locLower = (location || "").toLowerCase();
         const matched = Object.entries(NAME_TO_CODE)
             .find(([name]) => locLower.includes(name));
@@ -3025,7 +3104,9 @@ function Sell({ dark, user, lots, setLots }) {
         const newId = `NEW${Date.now().toString().slice(-6)}`;
         const base = {
             id: newId,
-            title: title.trim(),
+            make: make.trim(),
+            model: model.trim() || undefined,
+            title: title.trim() || undefined,
             location: location.trim(), // "City, Country"
             coords, // { lat, lng }
             countryCode: cc,
@@ -3042,7 +3123,6 @@ function Sell({ dark, user, lots, setLots }) {
             companyName: sellerType === "Company" ? (companyName?.trim() || "") : "", 
             specs,
             description: description.trim(),
-            documents: docList,
             createdAt: new Date().toISOString(),
         };
         const newLot = listingType === "auction" ? {
@@ -3084,6 +3164,26 @@ function Sell({ dark, user, lots, setLots }) {
                                 placeholder="e.g., 2018 Volvo L120 Wheel Loader"
                                 className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm tracking-wide leading-tight ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
                             />
+                        </div>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs font-medium">Make</label>
+                                <input
+                                    value={make}
+                                    onChange={(e) => setMake(e.target.value)}
+                                    placeholder="e.g., Volvo, Caterpillar"
+                                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium">Model</label>
+                                <input
+                                    value={model}
+                                    onChange={(e) => setModel(e.target.value)}
+                                    placeholder="e.g., L120, D6R"
+                                    className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                                />
+                            </div>
                         </div>
                         {/* Category & Subcategory */}
                         <div className="sm:col-span-2">
@@ -3204,11 +3304,7 @@ function Sell({ dark, user, lots, setLots }) {
 
                         {category === "Trucks" ? (
                             <div className="grid sm:grid-cols-2 gap-4">
-                                {/* Make / Model */}
-                                <input value={make} onChange={(e) => setMake(e.target.value)} placeholder="Make (e.g., Volvo)"
-                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
-                                <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="Model (e.g., FH16)"
-                                    className={`w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                                
 
                                 {/* VIN */}
                                 <input value={vin} onChange={(e) => setVin(e.target.value)} placeholder="VIN"
@@ -3247,10 +3343,38 @@ function Sell({ dark, user, lots, setLots }) {
                                 </select>
 
                                 {/* Inspection date */}
-                                <input type="date" value={inspectionValidUntil}
-                                    onChange={(e) => setInspectionValidUntil(e.target.value)}
-                                    placeholder="Technical inspection valid until"
-                                    className={`w-full border rounded-xl px-3 py-2 text-sm sm:col-span-2 ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`} />
+                                <div>
+                                    <label className="text-xs font-medium">Technical inspection valid until</label>
+
+                                    <div className="relative mt-1">
+                                        {/* Visible fake input (clickable) */}
+                                        <button
+                                            type="button"
+                                            onClick={openDatePicker}
+                                            className={`w-full text-left border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : "bg-white"
+                                                }`}
+                                        >
+                                            {inspectionValidUntil ? (
+                                                <span>{formatDateEU(inspectionValidUntil)}</span>
+                                            ) : (
+                                                <span className={dark ? "text-neutral-400" : "text-gray-500"}>
+                                                    Technical inspection valid until
+                                                </span>
+                                            )}
+                                        </button>
+
+                                        {/* Hidden real date input */}
+                                        <input
+                                            ref={dateRef}
+                                            type="date"
+                                            value={inspectionValidUntil}
+                                            onChange={(e) => setInspectionValidUntil(e.target.value)}
+                                            className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+                                            tabIndex={-1}
+                                            aria-hidden="true"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         ) : (
                             // ? your existing generic specs (engine, power, weight, hours)
@@ -3280,16 +3404,7 @@ function Sell({ dark, user, lots, setLots }) {
                     </div>
 
                     <div className="grid sm:grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-medium">Documents (one per line)</label>
-                            <textarea
-                                value={documents}
-                                onChange={(e) => setDocuments(e.target.value)}
-                                rows={3}
-                                placeholder="e.g., CE certificate\nService records"
-                                className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
-                            />
-                        </div>
+                        
 
                         {/* Photos */}
                         <div>
