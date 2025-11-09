@@ -1267,7 +1267,7 @@ function Filters({
     conditions, condition, setCondition, conditionCounts,
     defectsList, defects, setDefects, defectsCounts,
     // price
-    priceSteps, priceMin, priceMax, setPriceMin, setPriceMax, listingType, setListingType
+    priceSteps, priceMin, priceMax, setPriceMin, setPriceMax, listingType, setListingType, makes, makeFilter, setMakeFilter, makeCounts, models, modelFilter, setModelFilter, modelCounts,
 }) {
     const Count = ({ map }) => Array.from(map.values()).reduce((a, b) => a + b, 0);
 
@@ -1314,6 +1314,42 @@ function Filters({
                     {subcategories.map((s) => (
                         <option key={s} value={s}>
                             {s} {s !== "All" && subcategoryCounts?.get(s) ? `(${subcategoryCounts.get(s)})` : ""}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            {/* --- Make Filter --- */}
+            <div className="mt-4">
+                <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Make</label>
+                <select
+                    value={makeFilter}
+                    onChange={(e) => {
+                        setMakeFilter(e.target.value);
+                        setModelFilter("All"); // reset model when make changes
+                    }}
+                    className={`w-full mt-1 border rounded-lg px-2 py-1 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""}`}
+                >
+                    {["All", ...Array.from(makeCounts.keys()).sort()].map(mk => (
+                        <option key={mk} value={mk}>
+                            {mk} {mk !== "All" && `(${makeCounts.get(mk) || 0})`}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
+            {/* --- Model Filter --- */}
+            <div className="mt-3">
+                <label className={`text-xs font-medium ${dark ? "text-neutral-400" : "text-gray-600"}`}>Model</label>
+                <select
+                    value={modelFilter}
+                    onChange={(e) => setModelFilter(e.target.value)}
+                    disabled={makeFilter === "All"}
+                    className={`w-full mt-1 border rounded-lg px-2 py-1 text-sm ${dark ? "bg-neutral-800 border-neutral-700 text-white" : ""
+                        } ${makeFilter === "All" ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                    {["All", ...Array.from(modelCounts.keys()).sort()].map(mo => (
+                        <option key={mo} value={mo}>
+                            {mo} {mo !== "All" && `(${modelCounts.get(mo) || 0})`}
                         </option>
                     ))}
                 </select>
@@ -1437,6 +1473,8 @@ function Filters({
                         setPriceMin(priceSteps[0]);
                         setPriceMax(priceSteps[priceSteps.length - 1]);
                         setQuery(""); // optional: reset search text if you have one
+                        setMakeFilter("All");
+                        setModelFilter("All");
                     }}
                     className={`w-full py-2 rounded-xl font-medium ${dark
                             ? "bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-white"
@@ -1650,7 +1688,7 @@ function Home({
     country, setCountry,
     condition, setCondition,
     defects, setDefects,
-    priceSteps, priceMin, priceMax, setPriceMin, setPriceMax, user
+    priceSteps, priceMin, priceMax, setPriceMin, setPriceMax, user, makeFilter, setMakeFilter, modelFilter, setModelFilter
 }) {
     const [listingType, setListingType] = React.useState("All"); // All | auction | sale
     const [_tick, setTick] = useState(0);
@@ -1699,36 +1737,56 @@ function Home({
     }, [subcategoryCounts]);
     
 
-
+    const eq = (a, b) => String(a || "").toLowerCase() === String(b || "").toLowerCase();
     // Build a source set based on all current selections EXCEPT the dimension we’re counting
     const byCountrySource = useMemo(() => baseFiltered
         .filter(l => (category === "All" ? true : l.category === category))
         .filter(l => (condition === "All" ? true : l.condition === condition))
         .filter(l => (defects === "All" ? true : (l.hasDefects ? "With defects" : "Without defects") === defects))
-        , [baseFiltered, category, condition, defects]);
+        .filter(l => (makeFilter === "All" ? true : eq(l.make, makeFilter)))
+        , [baseFiltered, category, condition, defects, makeFilter]);
+
+    const byMakeSource = useMemo(() => baseFiltered
+        .filter(l => (country === "All" ? true : getCountry(l.location) === country))
+        .filter(l => (condition === "All" ? true : l.condition === condition))
+        .filter(l => (defects === "All" ? true : (l.hasDefects ? "With defects" : "Without defects") === defects))
+        .filter(l => (category === "All" ? true : l.category === category))
+        , [baseFiltered, country, condition, defects, category]);
 
     const byCategorySource = useMemo(() => baseFiltered
         .filter(l => (country === "All" ? true : getCountry(l.location) === country))
         .filter(l => (condition === "All" ? true : l.condition === condition))
         .filter(l => (defects === "All" ? true : (l.hasDefects ? "With defects" : "Without defects") === defects))
-        , [baseFiltered, country, condition, defects]);
+        .filter(l => (makeFilter === "All" ? true : eq(l.make, makeFilter)))
+        , [baseFiltered, country, condition, defects, makeFilter]);
 
     const byConditionSource = useMemo(() => baseFiltered
         .filter(l => (country === "All" ? true : getCountry(l.location) === country))
         .filter(l => (category === "All" ? true : l.category === category))
         .filter(l => (defects === "All" ? true : (l.hasDefects ? "With defects" : "Without defects") === defects))
-        , [baseFiltered, country, category, defects]);
+        .filter(l => (makeFilter === "All" ? true : eq(l.make, makeFilter)))
+        , [baseFiltered, country, category, defects, makeFilter]);
 
     const byDefectsSource = useMemo(() => baseFiltered
         .filter(l => (country === "All" ? true : getCountry(l.location) === country))
         .filter(l => (category === "All" ? true : l.category === category))
         .filter(l => (condition === "All" ? true : l.condition === condition))
-        , [baseFiltered, country, category, condition]);
+        .filter(l => (makeFilter === "All" ? true : eq(l.make, makeFilter)))
+        , [baseFiltered, country, category, condition, makeFilter]);
+
+    const byModelSource = useMemo(() => baseFiltered
+        .filter(l => (country === "All" ? true : getCountry(l.location) === country))
+        .filter(l => (category === "All" ? true : l.category === category))
+        .filter(l => (condition === "All" ? true : l.condition === condition))
+        .filter(l => (defects === "All" ? true : (l.hasDefects ? "With defects" : "Without defects") === defects))
+        .filter(l => (makeFilter === "All" ? true : eq(l.make, makeFilter)))
+        , [baseFiltered, country, category, condition, defects, makeFilter]);
 
     // Counts (Maps) for each dimension, from its respective source
     const countryCounts = useMemo(() => {
         const m = new Map();
         for (const l of byCountrySource) {
+            if (!l.location) continue;
             const c = getCountry(l.location);
             m.set(c, (m.get(c) || 0) + 1);
         }
@@ -1738,6 +1796,7 @@ function Home({
     const categoryCounts = useMemo(() => {
         const m = new Map();
         for (const l of byCategorySource) {
+            if (!l.category) continue;
             m.set(l.category, (m.get(l.category) || 0) + 1);
         }
         return m;
@@ -1746,6 +1805,7 @@ function Home({
     const conditionCounts = useMemo(() => {
         const m = new Map();
         for (const l of byConditionSource) {
+            if (!l.condition) continue;
             m.set(l.condition, (m.get(l.condition) || 0) + 1); // "Used" / "New"
         }
         return m;
@@ -1754,11 +1814,32 @@ function Home({
     const defectsCounts = useMemo(() => {
         const m = new Map();
         for (const l of byDefectsSource) {
+            if (l.hasDefects === undefined || l.hasDefects === null) continue;
             const key = l.hasDefects ? "With defects" : "Without defects";
             m.set(key, (m.get(key) || 0) + 1);
         }
         return m;
     }, [byDefectsSource]);
+    const makeCounts = useMemo(() => {
+        const m = new Map();
+        for (const l of byMakeSource) {
+            const mk = l.make;
+            if (!mk) continue;
+            m.set(mk, (m.get(mk) || 0) + 1);
+        }
+        return m;
+    }, [byMakeSource]);
+
+    const modelCounts = useMemo(() => {
+        const m = new Map();
+        for (const l of byModelSource) {
+            if (!l.make || !l.model) continue;
+            // only count models belonging to selected make
+            if (makeFilter !== "All" && l.make !== makeFilter) continue;
+            m.set(l.model, (m.get(l.model) || 0) + 1);
+        }
+        return m;
+    }, [byModelSource, makeFilter]);
 
     // Option arrays (All + sorted keys from maps)
     const countries = useMemo(() => ["All", ...Array.from(countryCounts.keys()).sort()], [countryCounts]);
@@ -1775,7 +1856,8 @@ function Home({
         const sorted = order.filter(k => keys.includes(k));
         return ["All", ...sorted];
     }, [defectsCounts]);
-
+    const makes = useMemo(() => ["All", ...Array.from(makeCounts.keys()).sort()], [makeCounts]);
+    const models = useMemo(() => ["All", ...Array.from(modelCounts.keys()).sort()], [modelCounts]);
     // Auto-correct invalid selections when the available options change
     useEffect(() => {
         if (country !== "All" && !countryCounts.has(country)) {
@@ -1788,6 +1870,18 @@ function Home({
             const first = categories[1]; setCategory(first ?? "All");
         }
     }, [categories, category, categoryCounts, setCategory]);
+
+    useEffect(() => {
+        if (makeFilter !== "All" && !makeCounts.has(makeFilter)) {
+            setMakeFilter("All");
+        }
+    }, [makeCounts, makeFilter, setMakeFilter]);
+
+    useEffect(() => {
+        if (modelFilter !== "All" && !modelCounts.has(modelFilter)) {
+            setModelFilter("All");
+        }
+    }, [modelCounts, modelFilter, setModelFilter]);
 
     useEffect(() => {
         if (condition !== "All" && !conditionCounts.has(condition)) {
@@ -1819,6 +1913,11 @@ function Home({
         if (subcategory !== "All") out = out.filter(l => (l.subcategory || "Unspecified") === subcategory);
         if (condition !== "All") out = out.filter(l => l.condition === condition);
         if (defects !== "All") out = out.filter(l => (l.hasDefects ? "With defects" : "Without defects") === defects);
+        if (makeFilter !== "All")
+            out = out.filter(l => eq(l.make, makeFilter));
+
+        if (modelFilter !== "All")
+            out = out.filter(l => eq(l.model, modelFilter));
 
         if (sortBy === "endingSoon") {
             out = out.slice().sort((a, b) => endsAtTime(a) - endsAtTime(b));
@@ -1835,7 +1934,7 @@ function Home({
             return tb - ta; // newest first
         });
         return out;
-    }, [baseFiltered, country, category, subcategory, condition, defects, sortBy]);
+    }, [baseFiltered, country, category, subcategory, condition, defects, sortBy, makeFilter, modelFilter]);
     // --- Pagination ---
     const [pageSize, setPageSize] = React.useState(12); // 12 | 28 | 56
     const [page, setPage] = React.useState(1);
@@ -1892,6 +1991,14 @@ function Home({
                     setPriceMax={setPriceMax}
                     listingType={listingType}
                     setListingType={setListingType}
+                    makes={makes}
+                    makeFilter={makeFilter}
+                    setMakeFilter={setMakeFilter}
+                    makeCounts={makeCounts}
+                    models={models}
+                    modelFilter={modelFilter}
+                    setModelFilter={setModelFilter}
+                    modelCounts={modelCounts}
                 />
             </aside>
 
@@ -1929,7 +2036,8 @@ function Home({
                         No listings match your filters{" "}
                         <button
                             onClick={() => {
-                                setQuery(""); setCategory("All"); setCountry("All"); setCondition("All"); setDefects("All"); setPriceMin(0); setPriceMax(priceSteps[priceSteps.length - 1] || 0); }}
+                                setQuery(""); setCategory("All"); setCountry("All"); setCondition("All"); setDefects("All"); setMakeFilter("All");
+                                setModelFilter("All"); setPriceMin(0); setPriceMax(priceSteps[priceSteps.length - 1] || 0); }}
                             className="underline"
                         >
                             Reset filters
@@ -3716,6 +3824,8 @@ export default function App() {
     const [country, setCountry] = useState("All");
     const [condition, setCondition] = useState("All");   // ?? new
     const [defects, setDefects] = useState("All"); 
+    const [makeFilter, setMakeFilter] = useState("All");
+    const [modelFilter, setModelFilter] = useState("All");
     const [sortBy, setSortBy] = useState("endingSoon");
     const [dark, setDark] = useState(false);
     // --- Auth (mock) ---
@@ -3781,6 +3891,10 @@ export default function App() {
                                 setPriceMax={setPriceMax}
                                 dark={dark}
                                 user={user}
+                                makeFilter={makeFilter}
+                                setMakeFilter={setMakeFilter}
+                                modelFilter={modelFilter}
+                                setModelFilter={setModelFilter}
                             />
                         }
                     />
